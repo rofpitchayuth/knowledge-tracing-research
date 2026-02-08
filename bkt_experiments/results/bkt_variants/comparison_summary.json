@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-01-15T00:32:47.121433",
+  "models_compared": [
+    "Standard BKT",
+    "BKT with Forgetting",
+    "Individualized BKT"
+  ],
+  "experiments_run": [
+    "single_dataset",
+    "data_efficiency"
+  ],
+  "best_model_by_auc": "BKT with Forgetting",
+  "best_model_by_accuracy": "BKT with Forgetting",
+  "fastest_model": "Standard BKT"
+}

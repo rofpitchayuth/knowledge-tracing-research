@@ -1,0 +1,107 @@
+{
+  "all_low": {
+    "parameters": {
+      "p_init": 0.01,
+      "p_learn": 0.01,
+      "p_guess": 0.01,
+      "p_slip": 0.01
+    },
+    "metrics": {
+      "auc": 0.7898361422456048,
+      "accuracy": 0.7460629921259843,
+      "rmse": 0.46250014228551833,
+      "log_loss": 0.8527957017417098
+    },
+    "success": true
+  },
+  "all_high": {
+    "parameters": {
+      "p_init": 0.9,
+      "p_learn": 0.4,
+      "p_guess": 0.4,
+      "p_slip": 0.4
+    },
+    "metrics": {
+      "auc": 0.7174297227305404,
+      "accuracy": 0.6255468066491688,
+      "rmse": 0.48329874235494863,
+      "log_loss": 0.659933138064244
+    },
+    "success": true
+  },
+  "high_init_only": {
+    "parameters": {
+      "p_init": 0.9,
+      "p_learn": 0.1,
+      "p_guess": 0.15,
+      "p_slip": 0.1
+    },
+    "metrics": {
+      "auc": 0.7954156386837462,
+      "accuracy": 0.7198162729658792,
+      "rmse": 0.43521388589476756,
+      "log_loss": 0.5642842185226129
+    },
+    "success": true
+  },
+  "high_learn_only": {
+    "parameters": {
+      "p_init": 0.2,
+      "p_learn": 0.45,
+      "p_guess": 0.15,
+      "p_slip": 0.1
+    },
+    "metrics": {
+      "auc": 0.786724928109274,
+      "accuracy": 0.6441382327209099,
+      "rmse": 0.4619173496601672,
+      "log_loss": 0.6223549583167185
+    },
+    "success": true
+  },
+  "high_guess_slip": {
+    "parameters": {
+      "p_init": 0.2,
+      "p_learn": 0.15,
+      "p_guess": 0.38,
+      "p_slip": 0.38
+    },
+    "metrics": {
+      "auc": 0.7698270333638323,
+      "accuracy": 0.7088801399825022,
+      "rmse": 0.4651346411006058,
+      "log_loss": 0.6248609636206568
+    },
+    "success": true
+  },
+  "no_learning": {
+    "parameters": {
+      "p_init": 0.2,
+      "p_learn": 0.0,
+      "p_guess": 0.2,
+      "p_slip": 0.1
+    },
+    "metrics": {
+      "auc": 0.7573065077445919,
+      "accuracy": 0.6756342957130359,
+      "rmse": 0.4692119271173107,
+      "log_loss": 0.6315346448647494
+    },
+    "success": true
+  },
+  "perfect_learner": {
+    "parameters": {
+      "p_init": 0.1,
+      "p_learn": 0.5,
+      "p_guess": 0.05,
+      "p_slip": 0.02
+    },
+    "metrics": {
+      "auc": 0.7889318917064245,
+      "accuracy": 0.6342957130358705,
+      "rmse": 0.4791337803750682,
+      "log_loss": 0.7676400190150294
+    },
+    "success": true
+  }
+}

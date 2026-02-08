@@ -1,0 +1,107 @@
+{
+  "all_low": {
+    "parameters": {
+      "p_init": 0.01,
+      "p_learn": 0.01,
+      "p_guess": 0.01,
+      "p_slip": 0.01
+    },
+    "metrics": {
+      "auc": 0.7805539712315293,
+      "accuracy": 0.727975533089797,
+      "rmse": 0.48043688879084756,
+      "log_loss": 0.9072750062229358
+    },
+    "success": true
+  },
+  "all_high": {
+    "parameters": {
+      "p_init": 0.9,
+      "p_learn": 0.4,
+      "p_guess": 0.4,
+      "p_slip": 0.4
+    },
+    "metrics": {
+      "auc": 0.7006050572098514,
+      "accuracy": 0.5848271174921417,
+      "rmse": 0.4911550359146779,
+      "log_loss": 0.6754326238952629
+    },
+    "success": true
+  },
+  "high_init_only": {
+    "parameters": {
+      "p_init": 0.9,
+      "p_learn": 0.1,
+      "p_guess": 0.15,
+      "p_slip": 0.1
+    },
+    "metrics": {
+      "auc": 0.777440224613749,
+      "accuracy": 0.6841389856426812,
+      "rmse": 0.455248749491022,
+      "log_loss": 0.605623956614284
+    },
+    "success": true
+  },
+  "high_learn_only": {
+    "parameters": {
+      "p_init": 0.2,
+      "p_learn": 0.45,
+      "p_guess": 0.15,
+      "p_slip": 0.1
+    },
+    "metrics": {
+      "auc": 0.7757945489028214,
+      "accuracy": 0.6177894826267947,
+      "rmse": 0.4781012692666062,
+      "log_loss": 0.6604898768302108
+    },
+    "success": true
+  },
+  "high_guess_slip": {
+    "parameters": {
+      "p_init": 0.2,
+      "p_learn": 0.15,
+      "p_guess": 0.38,
+      "p_slip": 0.38
+    },
+    "metrics": {
+      "auc": 0.7546938794679572,
+      "accuracy": 0.6852433947837907,
+      "rmse": 0.4714961646102813,
+      "log_loss": 0.6370125483819337
+    },
+    "success": true
+  },
+  "no_learning": {
+    "parameters": {
+      "p_init": 0.2,
+      "p_learn": 0.0,
+      "p_guess": 0.2,
+      "p_slip": 0.1
+    },
+    "metrics": {
+      "auc": 0.7252954838620694,
+      "accuracy": 0.6432758474216295,
+      "rmse": 0.48921369621819316,
+      "log_loss": 0.6753403694297369
+    },
+    "success": true
+  },
+  "perfect_learner": {
+    "parameters": {
+      "p_init": 0.1,
+      "p_learn": 0.5,
+      "p_guess": 0.05,
+      "p_slip": 0.02
+    },
+    "metrics": {
+      "auc": 0.7795502439977898,
+      "accuracy": 0.600458754566307,
+      "rmse": 0.4943116971316365,
+      "log_loss": 0.8091822425013933
+    },
+    "success": true
+  }
+}

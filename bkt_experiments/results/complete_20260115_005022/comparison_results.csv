@@ -1,0 +1,5 @@
+model,train_students,test_students,training_success,error
+Standard BKT,240,60,False,StandardBKT.fit() got an unexpected keyword argument 'epochs'
+BKT with Forgetting,240,60,False,BKTWithForgetting.fit() got an unexpected keyword argument 'epochs'
+Individualized BKT,240,60,False,IndividualizedBKT.fit() got an unexpected keyword argument 'epochs'
+Deep Knowledge Tracing,240,60,False,"stack expects each tensor to be equal size, but got [33, 6] at entry 0 and [38, 6] at entry 1"

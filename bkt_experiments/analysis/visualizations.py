@@ -6,18 +6,19 @@ Provides functions to create research-quality plots and figures for:
 - Model comparison charts
 - Learning trajectories
 - Heatmaps for parameter interactions
+- Data efficiency curves
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
 
 # Set style for publication-quality figures
 sns.set_style("whitegrid")
 sns.set_context("paper", font_scale=1.3)
+
 plt.rcParams['figure.dpi'] = 300
 plt.rcParams['savefig.dpi'] = 300
 plt.rcParams['font.family'] = 'sans-serif'
@@ -90,10 +91,6 @@ def plot_all_parameter_sensitivities(
 ):
     """
     Create sensitivity plots for all parameters in a single figure.
-    
-    Args:
-        sweep_results: Dictionary from run_all_parameter_sweeps
-        save_dir: Directory to save figures
     """
     params = ['p_init', 'p_learn', 'p_guess', 'p_slip']
     param_labels = ['P(L₀): Initial Knowledge', 'P(T): Learn Rate', 
@@ -163,14 +160,6 @@ def plot_parameter_interaction_heatmap(
 ):
     """
     Create heatmap showing interaction between two parameters.
-    
-    Args:
-        df: DataFrame from parameter_interaction_analysis
-        param1_name: First parameter name
-        param2_name: Second parameter name
-        metric: Metric to visualize
-        save_path: Path to save figure
-        show: Whether to display
     """
     # Pivot data for heatmap
     pivot = df.pivot(index=param2_name, columns=param1_name, values=metric)
@@ -200,41 +189,57 @@ def plot_parameter_interaction_heatmap(
 
 
 def plot_model_comparison(
-    results: Dict[str, Dict[str, float]],
-    metrics: List[str] = ['auc', 'accuracy', 'rmse', 'log_loss'],
+    data: Union[pd.DataFrame, Dict[str, Dict[str, float]]],
+    metrics: List[str] = ['test_auc', 'test_accuracy', 'test_rmse'],
     save_path: Optional[str] = None
 ):
     """
     Create bar chart comparing multiple models.
-    
-    Args:
-        results: Dictionary mapping model names to metrics
-        metrics: Metrics to compare
-        save_path: Path to save figure
+    Supports both DataFrame (from comparison script) and Dict (from individual runs).
     """
-    df = pd.DataFrame(results).T
+    # Convert Dict to DataFrame if needed
+    if isinstance(data, dict):
+        df = pd.DataFrame(data).T
+        df['model'] = df.index
+    else:
+        df = data.copy()
+        
+    # Standardize column names if needed (remove 'test_' prefix if not in df)
     
     fig, axes = plt.subplots(1, len(metrics), figsize=(5*len(metrics), 5))
     if len(metrics) == 1:
         axes = [axes]
     
-    colors = sns.color_palette("husl", len(df))
-    
     for ax, metric in zip(axes, metrics):
-        if metric not in df.columns:
+        # Handle different column naming conventions
+        col = metric
+        if col not in df.columns and col.replace('test_', '') in df.columns:
+            col = col.replace('test_', '')
+            
+        if col not in df.columns:
             continue
+            
+        # Sort
+        if 'rmse' in col.lower() or 'loss' in col.lower():
+            sorted_df = df.sort_values(col)
+        else:
+            sorted_df = df.sort_values(col, ascending=False)
+            
+        # Plot
+        bars = ax.bar(range(len(sorted_df)), sorted_df[col], 
+                     color='#2E86AB', edgecolor='black', linewidth=1.5)
         
-        df[metric].plot(kind='bar', ax=ax, color=colors, edgecolor='black', linewidth=1.5)
-        ax.set_ylabel(metric.upper(), fontsize=12, fontweight='bold')
-        ax.set_title(f'Model Comparison: {metric.upper()}', fontsize=13, fontweight='bold')
-        ax.set_xlabel('Model', fontsize=12, fontweight='bold')
+        # Add labels
+        for i, v in enumerate(sorted_df[col]):
+            ax.text(i, v + 0.01, f'{v:.4f}', ha='center', va='bottom', 
+                   fontsize=10, fontweight='bold')
+            
+        ax.set_xticks(range(len(sorted_df)))
+        ax.set_xticklabels(sorted_df['model'], rotation=45, ha='right')
+        ax.set_ylabel(metric.replace('_', ' ').upper(), fontsize=12, fontweight='bold')
+        ax.set_title(f'Model Comparison: {metric.replace("_", " ").upper()}', 
+                    fontsize=13, fontweight='bold')
         ax.grid(True, alpha=0.3, axis='y')
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-        
-        # Add value labels on bars
-        for i, v in enumerate(df[metric]):
-            ax.text(i, v + 0.01, f'{v:.3f}', ha='center', va='bottom', 
-                   fontsize=9, fontweight='bold')
     
     plt.tight_layout()
     
@@ -242,7 +247,74 @@ def plot_model_comparison(
         plt.savefig(save_path, bbox_inches='tight', dpi=300)
         print(f"Saved to: {save_path}")
     
-    plt.show()
+    # Don't show by default to avoid blocking script execution if run in batch
+    plt.close()
+
+
+def plot_data_efficiency(
+    df: pd.DataFrame,
+    save_path: Optional[str] = None
+):
+    """
+    Create learning curves showing data efficiency.
+    """
+    if 'test_auc' not in df.columns or 'sample_size' not in df.columns:
+        print("Required columns missing for data efficiency plot")
+        return
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # Group by model and sample size
+    grouped = df.groupby(['model', 'sample_size'])['test_auc'].agg(['mean', 'std'])
+    
+    # Plot AUC
+    models = df['model'].unique()
+    colors = sns.color_palette("husl", len(models))
+    
+    for i, model in enumerate(models):
+        if model not in grouped.index: continue
+        
+        model_data = grouped.loc[model]
+        axes[0].plot(model_data.index, model_data['mean'], 'o-', 
+                    linewidth=2.5, markersize=8, label=model, color=colors[i])
+        axes[0].fill_between(model_data.index,
+                            model_data['mean'] - model_data['std'],
+                            model_data['mean'] + model_data['std'],
+                            alpha=0.2, color=colors[i])
+    
+    axes[0].set_xlabel('Number of Students', fontsize=12, fontweight='bold')
+    axes[0].set_ylabel('Test AUC', fontsize=12, fontweight='bold')
+    axes[0].set_title('Data Efficiency: AUC vs Sample Size', 
+                     fontsize=13, fontweight='bold')
+    axes[0].legend(fontsize=10)
+    axes[0].grid(True, alpha=0.3)
+    
+    # Plot Training Time (if available)
+    # Just counting trials or finding specific time column
+    grouped_time = df.groupby(['model', 'sample_size']).size()
+    
+    for i, model in enumerate(models):
+        if model not in df['model'].values: continue
+        model_data = df[df['model'] == model]
+        sizes = sorted(model_data['sample_size'].unique())
+        counts = [len(model_data[model_data['sample_size'] == s]) for s in sizes]
+        
+        axes[1].plot(sizes, counts, 'o-', linewidth=2.5, 
+                    markersize=8, label=model, color=colors[i])
+    
+    axes[1].set_xlabel('Number of Students', fontsize=12, fontweight='bold')
+    axes[1].set_ylabel('Number of Trials', fontsize=12, fontweight='bold')
+    axes[1].set_title('Trials Completed', fontsize=13, fontweight='bold')
+    axes[1].legend(fontsize=10)
+    axes[1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Saved to: {save_path}")
+    
+    plt.close()
 
 
 def plot_learning_trajectory(
@@ -253,12 +325,6 @@ def plot_learning_trajectory(
 ):
     """
     Visualize knowledge state evolution and responses over time.
-    
-    Args:
-        knowledge_states: List of P(L_t) values over time
-        responses: List of correct (1) or incorrect (0) responses
-        skill_name: Name of the skill
-        save_path: Path to save figure
     """
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True,
                                     gridspec_kw={'height_ratios': [2, 1]})
@@ -291,7 +357,7 @@ def plot_learning_trajectory(
         plt.savefig(save_path, bbox_inches='tight', dpi=300)
         print(f"Saved to: {save_path}")
     
-    plt.show()
+    plt.close()
 
 
 def create_summary_report_figure(
@@ -300,10 +366,6 @@ def create_summary_report_figure(
 ):
     """
     Create a summary figure showing recommended parameter ranges.
-    
-    Args:
-        recommendations: Dictionary from generate_recommendations
-        save_path: Path to save figure
     """
     params = ['p_init', 'p_learn', 'p_guess', 'p_slip']
     labels = ['P(L₀)\nInitial', 'P(T)\nLearn', 'P(G)\nGuess', 'P(S)\nSlip']
@@ -343,4 +405,4 @@ def create_summary_report_figure(
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches='tight', dpi=300)
     print(f"Summary figure saved to: {save_path}")
-    plt.show()
+    plt.close()

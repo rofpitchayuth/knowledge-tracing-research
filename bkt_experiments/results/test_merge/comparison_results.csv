@@ -1,0 +1,6 @@
+model,train_students,test_students,training_success,error,training_time_seconds,inference_time_seconds,test_accuracy,test_auc,test_rmse,test_log_loss,test_ece,test_f1,train_accuracy,train_auc,train_rmse,accuracy_gap,auc_gap
+Standard BKT,16,4,False,StandardBKT.fit() got an unexpected keyword argument 'epochs',,,,,,,,,,,,,
+BKT with Forgetting,16,4,False,BKTWithForgetting.fit() got an unexpected keyword argument 'epochs',,,,,,,,,,,,,
+Individualized BKT,16,4,False,IndividualizedBKT.fit() got an unexpected keyword argument 'epochs',,,,,,,,,,,,,
+Improved BKT (Time),16,4,True,,0.43786168098449707,0.012509822845458984,0.6894409937888198,0.7325077399380805,0.4550126897828802,0.6005328783567594,,,0.7100313479623824,0.7499604492959975,0.4453285026825426,0.020590354173562586,0.017452709357916985
+Logistic Model (PFA),16,4,True,,0.013253450393676758,0.0026726722717285156,0.5838509316770186,0.5941176470588235,0.5033299346347354,0.7056866985000176,,,0.6833855799373041,0.7118731213415599,0.4651605647269434,0.09953464826028546,0.11775547428273636

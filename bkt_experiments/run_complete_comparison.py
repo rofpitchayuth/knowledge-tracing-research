@@ -33,13 +33,7 @@ from models.bkt.improved_bkt import ImprovedBKT
 from models.logistic.logistic_model import LogisticModel
 
 # Try to import Deep Learning models
-try:
-    from models.deep.dkt import DeepKnowledgeTracing
-    DKT_AVAILABLE = True
-except ImportError:
-    DeepKnowledgeTracing = None
-    DKT_AVAILABLE = False
-    print("Warning: torch not found. Deep Knowledge Tracing (DKT) will be unavailable.")
+from models.deep.dkt import DeepKnowledgeTracing
 
 from data.mock_generator import MockDataGenerator
 
@@ -96,11 +90,9 @@ def main():
     print(f"     1. Standard BKT (4 parameters)")
     print(f"     2. BKT with Forgetting (5 parameters)")
     print(f"     3. Individualized BKT (per-student)")
-    if not args.skip_dkt and DKT_AVAILABLE:
+    if not args.skip_dkt:
         print(f"  🤖 Deep Learning:")
         print(f"     4. Deep Knowledge Tracing (LSTM, {args.epochs} epochs)")
-    elif not DKT_AVAILABLE:
-        print(f"  ⚠️ Deep Learning (DKT) unavailable (torch not installed)")
     print()
     print(f"Configuration:")
     print(f"  Students: {args.students} {'(⚠️ DKT works best with 500+)' if args.students < 500 and not args.skip_dkt else ''}")
@@ -134,7 +126,7 @@ def main():
     comparison.add_model("Logistic Model (PFA)", LogisticModel())
     
     # Add Deep Learning
-    if not args.skip_dkt and DKT_AVAILABLE:
+    if not args.skip_dkt:
         dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2)
         comparison.add_model("Deep Knowledge Tracing", dkt)
         print("  (DKT will train for {} epochs - this may take a few minutes)".format(args.epochs))

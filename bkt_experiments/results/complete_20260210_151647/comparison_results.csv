@@ -1,0 +1,7 @@
+model,train_students,test_students,training_success,error,training_time_seconds,inference_time_seconds,test_accuracy,test_auc,test_rmse,test_log_loss,test_ece,test_f1,train_accuracy,train_auc,train_rmse,accuracy_gap,auc_gap
+Standard BKT,240,60,False,StandardBKT.fit() got an unexpected keyword argument 'epochs',,,,,,,,,,,,,
+BKT with Forgetting,240,60,False,BKTWithForgetting.fit() got an unexpected keyword argument 'epochs',,,,,,,,,,,,,
+Individualized BKT,240,60,False,IndividualizedBKT.fit() got an unexpected keyword argument 'epochs',,,,,,,,,,,,,
+Improved BKT (Time),240,60,True,,2.909342050552368,0.03557920455932617,0.7048167970358172,0.7392903494695915,0.45205623928542094,0.5983993024874864,,,0.6865671641791045,0.7347797196226283,0.4551838061634253,-0.018249632856712772,-0.0045106298469631545
+Logistic Model (PFA),240,60,True,,0.04793715476989746,0.006943464279174805,0.670646356525319,0.7022079087485508,0.4711193412765611,0.6371224552006405,,,0.6519189765458422,0.6863785761007645,0.47433706627577255,-0.01872737997947682,-0.0158293326477863
+Deep Knowledge Tracing,240,60,False,"stack expects each tensor to be equal size, but got [33, 6] at entry 0 and [40, 6] at entry 2",,,,,,,,,,,,,

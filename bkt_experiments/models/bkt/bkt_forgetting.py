@@ -235,7 +235,7 @@ class BKTWithForgetting(ParametricBKTModel):
         return self._clip_probability(p_know_after_transition)
     
     def fit(self, dataset: Dataset, max_iterations: int = 100,
-            tolerance: float = 1e-4, verbose: bool = False) -> None:
+            tolerance: float = 1e-4, verbose: bool = False, **kwargs) -> None:
         """
         Fit BKT parameters using EM algorithm (with forgetting).
         

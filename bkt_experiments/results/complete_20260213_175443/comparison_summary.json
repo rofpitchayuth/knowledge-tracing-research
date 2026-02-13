@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-02-13T17:57:43.633282",
+  "models_compared": [
+    "Standard BKT",
+    "BKT with Forgetting",
+    "Individualized BKT",
+    "Improved BKT (Time)",
+    "Logistic Model (PFA)",
+    "Deep Knowledge Tracing"
+  ],
+  "experiments_run": [
+    "single_dataset",
+    "data_efficiency"
+  ],
+  "best_model_by_auc": "Logistic Model (PFA)",
+  "best_model_by_accuracy": "Improved BKT (Time)",
+  "fastest_model": "Logistic Model (PFA)"
+}

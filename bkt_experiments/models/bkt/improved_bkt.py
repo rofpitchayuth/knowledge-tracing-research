@@ -100,7 +100,8 @@ class ImprovedBKT(KnowledgeTracingModel):
                 initial_guess,
                 args=(student_data, skill_id),
                 bounds=bounds,
-                method='L-BFGS-B'
+                method='L-BFGS-B',
+                options={'maxiter': kwargs.get('max_iterations', 100), 'disp': False}
             )
             
             self.params[skill_id] = {

@@ -31,6 +31,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset as TorchDataset, DataLoader
+from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 # Direct imports
@@ -233,7 +234,19 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
         
         # Create PyTorch dataset
         torch_dataset = DKTDataset(dataset.sequences, self.num_skills)
-        dataloader = DataLoader(torch_dataset, batch_size=batch_size, shuffle=True)
+        
+        def collate_fn(batch):
+            inputs, targets, skills, masks = zip(*batch)
+            
+            # Pad sequences
+            inputs_padded = pad_sequence(inputs, batch_first=True, padding_value=0)
+            targets_padded = pad_sequence(targets, batch_first=True, padding_value=-1) # -1 for ignored targets
+            skills_padded = pad_sequence(skills, batch_first=True, padding_value=0)
+            masks_padded = pad_sequence(masks, batch_first=True, padding_value=0)
+            
+            return inputs_padded, targets_padded, skills_padded, masks_padded
+            
+        dataloader = DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
         
         # Initialize model
         self.model = DKTModel(
@@ -275,8 +288,24 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
                         skill_idx = skills[b, t].item()
                         batch_predictions[b, t] = predictions[b, t, skill_idx]
                 
-                # Compute loss
-                loss = criterion(batch_predictions, targets)
+                # Compute loss with masking
+                # Create mask for valid targets (where target != -1)
+                # Note: masks tensor from collate_fn marks valid sequence steps
+                
+                # Flatten tensors
+                preds_flat = batch_predictions.view(-1)
+                targets_flat = targets.view(-1)
+                masks_flat = masks.view(-1)
+                
+                # Apply mask
+                valid_indices = (masks_flat > 0)
+                
+                if valid_indices.sum() > 0:
+                    valid_preds = preds_flat[valid_indices]
+                    valid_targets = targets_flat[valid_indices]
+                    loss = criterion(valid_preds, valid_targets)
+                else:
+                    loss = torch.tensor(0.0, device=self.device, requires_grad=True)
                 
                 # Backward pass
                 optimizer.zero_grad()

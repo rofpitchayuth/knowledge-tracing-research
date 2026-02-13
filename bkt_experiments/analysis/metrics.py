@@ -8,17 +8,6 @@ from sklearn.metrics import (
 
 def compute_all_metrics(predictions: np.ndarray, targets: np.ndarray, 
                        threshold: float = 0.5) -> Dict[str, float]:
-    """
-    Compute all standard metrics for KT evaluation.
-    
-    Args:
-        predictions: Predicted probabilities (0-1)
-        targets: True labels (0 or 1)
-        threshold: Threshold for binary classification
-        
-    Returns:
-        Dictionary of metric names and values
-    """
     # Convert to numpy arrays
     predictions = np.array(predictions)
     targets = np.array(targets).astype(int)
@@ -56,7 +45,6 @@ def compute_all_metrics(predictions: np.ndarray, targets: np.ndarray,
 
 
 def compute_auc(predictions: np.ndarray, targets: np.ndarray) -> float:
-    """Compute Area Under ROC Curve."""
     try:
         return float(roc_auc_score(targets, predictions))
     except ValueError:
@@ -71,14 +59,6 @@ def compute_rmse(predictions: np.ndarray, targets: np.ndarray) -> float:
 
 def compute_log_loss(predictions: np.ndarray, targets: np.ndarray, 
                      eps: float = 1e-10) -> float:
-    """
-    Compute log loss (cross-entropy).
-    
-    Args:
-        predictions: Predicted probabilities
-        targets: True labels
-        eps: Small constant to avoid log(0)
-    """
     # Clip predictions to avoid log(0)
     predictions = np.clip(predictions, eps, 1 - eps)
     
@@ -95,18 +75,8 @@ def compute_log_loss(predictions: np.ndarray, targets: np.ndarray,
 def compute_expected_calibration_error(predictions: np.ndarray, targets: np.ndarray,
                                       num_bins: int = 10) -> float:
     """
-    Compute Expected Calibration Error (ECE).
-    
     ECE measures how well the predicted probabilities match the actual outcomes.
     Lower is better (0 = perfect calibration).
-    
-    Args:
-        predictions: Predicted probabilities
-        targets: True labels
-        num_bins: Number of bins for calibration
-        
-    Returns:
-        ECE value
     """
     bin_boundaries = np.linspace(0, 1, num_bins + 1)
     bin_lowers = bin_boundaries[:-1]
@@ -130,14 +100,6 @@ def compute_likelihood(predictions: np.ndarray, targets: np.ndarray,
                       eps: float = 1e-10) -> float:
     """
     Compute likelihood of data given predictions.
-    
-    Args:
-        predictions: Predicted probabilities
-        targets: True labels (0 or 1)
-        eps: Small constant to avoid log(0)
-        
-    Returns:
-        Log-likelihood value
     """
     predictions = np.clip(predictions, eps, 1 - eps)
     
@@ -161,10 +123,6 @@ def compute_brier_score(predictions: np.ndarray, targets: np.ndarray) -> float:
 def print_metric_summary(metrics: Dict[str, float], title: str = "Metrics") -> None:
     """
     Pretty print metric summary.
-    
-    Args:
-        metrics: Dictionary of metrics
-        title: Title for the summary
     """
     print(f"\n{'='*60}")
     print(f"{title:^60}")

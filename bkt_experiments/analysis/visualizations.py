@@ -1,14 +1,3 @@
-"""
-Visualization utilities for BKT experiments.
-
-Provides functions to create research-quality plots and figures for:
-- Parameter sensitivity curves
-- Model comparison charts
-- Learning trajectories
-- Heatmaps for parameter interactions
-- Data efficiency curves
-"""
-
 from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
@@ -31,16 +20,6 @@ def plot_parameter_sensitivity(
     save_path: Optional[str] = None,
     show: bool = True
 ):
-    """
-    Plot sensitivity curve for a single parameter.
-    
-    Args:
-        df: DataFrame from parameter sweep
-        parameter_name: Name of parameter
-        metrics: Metrics to plot
-        save_path: Path to save figure
-        show: Whether to display plot
-    """
     fig, axes = plt.subplots(1, len(metrics), figsize=(5*len(metrics), 4))
     
     if len(metrics) == 1:
@@ -89,9 +68,6 @@ def plot_all_parameter_sensitivities(
     sweep_results: Dict[str, pd.DataFrame],
     save_dir: Optional[str] = None
 ):
-    """
-    Create sensitivity plots for all parameters in a single figure.
-    """
     params = ['p_init', 'p_learn', 'p_guess', 'p_slip']
     param_labels = ['P(L₀): Initial Knowledge', 'P(T): Learn Rate', 
                     'P(G): Guess Rate', 'P(S): Slip Rate']
@@ -158,9 +134,6 @@ def plot_parameter_interaction_heatmap(
     save_path: Optional[str] = None,
     show: bool = True
 ):
-    """
-    Create heatmap showing interaction between two parameters.
-    """
     # Pivot data for heatmap
     pivot = df.pivot(index=param2_name, columns=param1_name, values=metric)
     
@@ -193,10 +166,6 @@ def plot_model_comparison(
     metrics: List[str] = ['test_auc', 'test_accuracy', 'test_rmse'],
     save_path: Optional[str] = None
 ):
-    """
-    Create bar chart comparing multiple models.
-    Supports both DataFrame (from comparison script) and Dict (from individual runs).
-    """
     # Convert Dict to DataFrame if needed
     if isinstance(data, dict):
         df = pd.DataFrame(data).T
@@ -255,9 +224,6 @@ def plot_data_efficiency(
     df: pd.DataFrame,
     save_path: Optional[str] = None
 ):
-    """
-    Create learning curves showing data efficiency.
-    """
     if 'test_auc' not in df.columns or 'sample_size' not in df.columns:
         print("Required columns missing for data efficiency plot")
         return
@@ -323,9 +289,6 @@ def plot_learning_trajectory(
     skill_name: str = "Skill",
     save_path: Optional[str] = None
 ):
-    """
-    Visualize knowledge state evolution and responses over time.
-    """
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True,
                                     gridspec_kw={'height_ratios': [2, 1]})
     
@@ -364,9 +327,6 @@ def create_summary_report_figure(
     recommendations: Dict[str, Dict],
     save_path: str = "results/parameter_recommendations.png"
 ):
-    """
-    Create a summary figure showing recommended parameter ranges.
-    """
     params = ['p_init', 'p_learn', 'p_guess', 'p_slip']
     labels = ['P(L₀)\nInitial', 'P(T)\nLearn', 'P(G)\nGuess', 'P(S)\nSlip']
     

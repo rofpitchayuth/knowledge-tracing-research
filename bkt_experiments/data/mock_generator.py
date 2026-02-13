@@ -1,10 +1,3 @@
-"""
-Mock Data Generator for BKT Experiments.
-
-Generates realistic student learning trajectories with various learner profiles.
-This is used for testing and experimentation when real data is not available.
-"""
-
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from datetime import datetime, timedelta
@@ -16,8 +9,6 @@ from .schemas import (
 
 
 class LearnerProfile:
-    """Represents different types of learners with different characteristics."""
-    
     FAST_LEARNER = {
         'name': 'Fast Learner',
         'p_init': 0.1,      # Low initial knowledge
@@ -60,8 +51,7 @@ class LearnerProfile:
     
     @classmethod
     def get_all_profiles(cls) -> List[Dict]:
-        """Get all predefined learner profiles."""
-        return [
+       return [
             cls.FAST_LEARNER,
             cls.SLOW_LEARNER,
             cls.PRIOR_KNOWLEDGE,
@@ -71,26 +61,11 @@ class LearnerProfile:
     
     @classmethod
     def sample_profile(cls) -> Dict:
-        """Randomly sample a learner profile."""
         return random.choice(cls.get_all_profiles())
 
 
 class MockDataGenerator:
-    """
-    Generates synthetic student learning data for BKT experiments.
-    
-    The generator creates realistic learning trajectories by simulating
-    the BKT process: students have a latent knowledge state that evolves
-    over time, and their responses are generated based on this state.
-    """
-    
     def __init__(self, seed: Optional[int] = None):
-        """
-        Initialize the mock data generator.
-        
-        Args:
-            seed: Random seed for reproducibility
-        """
         if seed is not None:
             np.random.seed(seed)
             random.seed(seed)
@@ -108,22 +83,6 @@ class MockDataGenerator:
         include_timestamps: bool = True,
         forgetting_rate: float = 0.0
     ) -> Dataset:
-        """
-        Generate a complete dataset with students, skills, and items.
-        
-        Args:
-            num_students: Number of students to generate
-            num_skills: Number of skills/knowledge components
-            num_items_per_skill: Number of practice items per skill
-            min_attempts_per_student: Minimum practice attempts per student
-            max_attempts_per_student: Maximum practice attempts per student
-            skill_names: Optional custom skill names (defaults to calculus topics)
-            include_timestamps: Whether to include realistic timestamps
-            forgetting_rate: Probability of forgetting (0 = no forgetting)
-            
-        Returns:
-            Complete dataset with student sequences
-        """
         # Generate skills
         skills = self._generate_skills(num_skills, skill_names)
         
@@ -160,7 +119,6 @@ class MockDataGenerator:
         num_skills: int,
         custom_names: Optional[List[str]] = None
     ) -> Dict[str, Skill]:
-        """Generate skills/knowledge components."""
         default_calculus_topics = [
             "Limits",
             "Derivatives",
@@ -205,15 +163,12 @@ class MockDataGenerator:
         skills: Dict[str, Skill],
         num_items_per_skill: int
     ) -> Dict[str, Item]:
-        """Generate practice items for each skill."""
         items = {}
         
         for skill_id, skill in skills.items():
             for i in range(num_items_per_skill):
                 item_id = f"{skill_id}_item_{i:03d}"
                 
-                # Generate difficulty: distributed around mean with some variance
-                # Difficulty affects slip/guess rates in contextu al BKT
                 difficulty = np.random.normal(0.0, 0.5)  # Mean 0, std 0.5
                 
                 items[item_id] = Item(
@@ -227,7 +182,6 @@ class MockDataGenerator:
         return items
     
     def _difficulty_to_level(self, difficulty: float) -> str:
-        """Convert numeric difficulty to categorical level."""
         if difficulty < -0.5:
             return "easy"
         elif difficulty < 0.5:
@@ -244,16 +198,6 @@ class MockDataGenerator:
         include_timestamps: bool,
         forgetting_rate: float
     ) -> StudentSequence:
-        """
-        Generate a realistic learning sequence for one student.
-        
-        Uses the BKT generative process:
-        1. Student starts with initial knowledge state for each skill
-        2. For each attempt:
-           - Select an item (skill)
-           - Generate response based on knowledge state and slip/guess
-           - Update knowledge state (learning or forgetting)
-        """
         # Assign a learner profile to this student
         profile = LearnerProfile.sample_profile()
         
@@ -357,19 +301,6 @@ class MockDataGenerator:
         num_students: int = 50,
         attempts_per_student: int = 30
     ) -> Dataset:
-        """
-        Generate dataset with known ground-truth parameters.
-        Useful for testing parameter estimation algorithms.
-        
-        Args:
-            true_params: Dictionary mapping skill_id to BKT parameters
-                        e.g., {'skill_00': {'p_init': 0.2, 'p_learn': 0.15, ...}}
-            num_students: Number of students
-            attempts_per_student: Attempts per student per skill
-            
-        Returns:
-            Dataset generated with known parameters
-        """
         skills = {}
         items = {}
         

@@ -1,9 +1,3 @@
-"""
-Data Loader for BKT Experiments.
-
-loads external datasets (CSV) into the internal Dataset schema.
-"""
-
 from typing import Optional, List, Dict
 import pandas as pd
 from datetime import datetime

@@ -1,9 +1,3 @@
-"""
-Base classes for Knowledge Tracing models.
-
-This module defines abstract base classes that all KT models should implement.
-"""
-
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Optional
 import numpy as np

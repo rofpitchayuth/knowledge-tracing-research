@@ -1,10 +1,3 @@
-"""
-Evaluation metrics for Knowledge Tracing models.
-
-Provides common metrics used in KT research including AUC, accuracy,
-RMSE, log-likelihood, and calibration measures.
-"""
-
 from typing import List, Dict, Tuple
 import numpy as np
 from sklearn.metrics import (

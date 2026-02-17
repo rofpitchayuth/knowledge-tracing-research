@@ -1,21 +1,3 @@
-"""
-BKT with Forgetting Mechanism
-
-Extension of Standard BKT that allows knowledge state to transition from
-"learned" (1) back to "not learned" (0), modeling the forgetting process.
-
-This addresses one of the main limitations of standard BKT which assumes
-"once learned, never forgotten" (P(Forget) = 0).
-
-Based on research by Khajah et al. (2016) and others showing that incorporating
-forgetting improves model accuracy and parameter identifiability.
-
-References:
-    Khajah, M., Lindsey, R. V., & Mozer, M. C. (2016). How deep is knowledge
-    tracing? Proceedings of the 9th International Conference on Educational
-    Data Mining.
-"""
-
 from typing import List, Dict, Tuple, Optional
 import numpy as np
 from dataclasses import dataclass, field
@@ -31,7 +13,6 @@ from data.schemas import StudentInteraction, StudentSequence, Dataset
 
 @dataclass
 class BKTForgettingParameters:
-    """Parameters for BKT model with forgetting for a single skill."""
     p_init: float = 0.20     # P(L0): Initial probability of knowing
     p_learn: float = 0.15    # P(T): Probability of learning (0→1 transition)
     p_forget: float = 0.05   # P(F): Probability of forgetting (1→0 transition) **NEW**
@@ -39,11 +20,9 @@ class BKTForgettingParameters:
     p_slip: float = 0.10     # P(S): Probability of slipping (error) when knowing
     
     def __post_init__(self):
-        """Validate parameters."""
         self._validate()
     
     def _validate(self):
-        """Ensure parameters are valid probabilities."""
         for name in ['p_init', 'p_learn', 'p_forget', 'p_guess', 'p_slip']:
             value = getattr(self, name)
             if not (0.0 <= value <= 1.0):
@@ -60,7 +39,6 @@ class BKTForgettingParameters:
         # because they act on different states
     
     def to_dict(self) -> Dict[str, float]:
-        """Convert to dictionary."""
         return {
             'p_init': self.p_init,
             'p_learn': self.p_learn,
@@ -71,36 +49,13 @@ class BKTForgettingParameters:
     
     @classmethod
     def from_dict(cls, params: Dict[str, float]) -> 'BKTForgettingParameters':
-        """Create from dictionary."""
         return cls(**params)
 
 
 class BKTWithForgetting(ParametricBKTModel):
-    """
-    BKT model with forgetting mechanism.
-    
-    Extends standard BKT by allowing bidirectional state transitions:
-    - 0 → 1 (learning) with probability P(T)
-    - 1 → 0 (forgetting) with probability P(F)
-    
-    This better models long-term retention and spacing effects in learning.
-    
-    Key differences from Standard BKT:
-    1. Knowledge can be lost over time
-    2. 5 parameters instead of 4 (adds P(F))
-    3. More realistic for spaced practice scenarios
-    4. Better parameter identifiability (according to research)
-    """
-    
     def __init__(self, skills: Optional[List[str]] = None,
                  default_params: Optional[BKTForgettingParameters] = None):
-        """
-        Initialize BKT with Forgetting model.
         
-        Args:
-            skills: List of skill IDs to initialize
-            default_params: Default parameters for all skills
-        """
         super().__init__()
         self.model_name = "BKT with Forgetting"
         self.skills_params: Dict[str, BKTForgettingParameters] = {}
@@ -114,28 +69,22 @@ class BKTWithForgetting(ParametricBKTModel):
                 )
     
     def _ensure_skill_exists(self, skill_id: str) -> None:
-        """Initialize skill parameters if they don't exist."""
         if skill_id not in self.skills_params:
             self.skills_params[skill_id] = BKTForgettingParameters()
     
     def _clip_probability(self, p: float) -> float:
-        """Clip probability to valid range [0, 1]."""
         return np.clip(p, 0.0, 1.0)
     
     def get_parameters(self, skill_id: str) -> Dict[str, float]:
-        """Get parameters for a skill."""
         self._ensure_skill_exists(skill_id)
         return self.skills_params[skill_id].to_dict()
     
     def set_parameters(self, skill_id: str, params: Dict[str, float]) -> None:
-        """Set parameters for a skill."""
         self.skills_params[skill_id] = BKTForgettingParameters.from_dict(params)
     
     def get_knowledge_state(self, student_id: str, skill_id: str,
                            history: List[StudentInteraction]) -> float:
         """
-        Get current knowledge state (probability of mastery) for a student-skill.
-        
         Args:
             student_id: Student ID
             skill_id: Skill ID
@@ -162,17 +111,10 @@ class BKTWithForgetting(ParametricBKTModel):
     def predict_next(self, student_id: str, history: List[StudentInteraction],
                      next_skill: str) -> float:
         """
-        Predict probability of answering the next question correctly.
-        
-        P(Correct) = P(L) * (1 - P(S)) + (1 - P(L)) * P(G)
-        
         Args:
             student_id: Student ID
             history: Past interactions
-            next_skill: Skill ID for next question
-            
-        Returns:
-            Probability of correct answer
+            next_skill: Skill ID for next question    
         """
         self._ensure_skill_exists(next_skill)
         params = self.skills_params[next_skill]
@@ -189,10 +131,6 @@ class BKTWithForgetting(ParametricBKTModel):
                       params: BKTForgettingParameters) -> float:
         """
         Single BKT update step with forgetting.
-        
-        1. Evidence update (Bayes' theorem): Update belief based on observation
-        2. Transition update: Account for both learning AND forgetting
-        
         Args:
             p_know_before: P(L_t) before seeing evidence
             correct: 1 if correct, 0 if incorrect
@@ -237,11 +175,6 @@ class BKTWithForgetting(ParametricBKTModel):
     def fit(self, dataset: Dataset, max_iterations: int = 100,
             tolerance: float = 1e-4, verbose: bool = False, **kwargs) -> None:
         """
-        Fit BKT parameters using EM algorithm (with forgetting).
-        
-        Note: EM for BKT with forgetting is more complex than standard BKT
-        because we need to estimate P(F) in addition to other parameters.
-        
         Args:
             dataset: Training dataset
             max_iterations: Maximum EM iterations
@@ -255,10 +188,6 @@ class BKTWithForgetting(ParametricBKTModel):
         # Initialize parameters for all skills
         for skill_id in dataset.get_skill_ids():
             self._ensure_skill_exists(skill_id)
-        
-        # Simplified EM: Fix P(F) at initial value and optimize others
-        # Full EM for P(F) requires forward-backward algorithm (more complex)
-        # This is a practical approximation
         
         prev_log_likelihood = -np.inf
         
@@ -325,7 +254,7 @@ class BKTWithForgetting(ParametricBKTModel):
         """
         M-step: Update parameters based on expected states.
         
-        Note: For simplicity, we keep P(F) fixed in this implementation.
+        For simplicity, we keep P(F) fixed in this implementation.
         Full EM for P(F) requires more sophisticated counting.
         """
         for skill_id in self.skills_params.keys():
@@ -411,7 +340,6 @@ class BKTWithForgetting(ParametricBKTModel):
                 pass
     
     def _compute_log_likelihood(self, dataset: Dataset) -> float:
-        """Compute log-likelihood of data given current parameters."""
         log_likelihood = 0.0
         
         for sequence in dataset.sequences:

@@ -74,11 +74,11 @@ class MockDataGenerator:
     
     def generate_dataset(
         self,
-        num_students: int = 100,
-        num_skills: int = 5,
-        num_items_per_skill: int = 20,
-        min_attempts_per_student: int = 20,
-        max_attempts_per_student: int = 100,
+        num_students: int = 10000,
+        num_skills: int = 10,
+        num_items_per_skill: int = 200,
+        min_attempts_per_student: int = 200,
+        max_attempts_per_student: int = 1000,
         skill_names: Optional[List[str]] = None,
         include_timestamps: bool = True,
         forgetting_rate: float = 0.0
@@ -298,8 +298,8 @@ class MockDataGenerator:
     def generate_simple_dataset(
         self,
         true_params: Dict[str, Dict[str, float]],
-        num_students: int = 50,
-        attempts_per_student: int = 30
+        num_students: int = 10000,
+        attempts_per_student: int = 300
     ) -> Dataset:
         skills = {}
         items = {}

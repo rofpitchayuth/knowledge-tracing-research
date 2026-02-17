@@ -249,12 +249,7 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
         dataloader = DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
         
         # Initialize model
-        self.model = DKTModel(
-            num_skills=self.num_skills,
-            hidden_size=self.hidden_size,
-            num_layers=self.num_layers,
-            dropout=self.dropout
-        ).to(self.device)
+        self.model = self._init_model(self.num_skills)
         
         # Loss and optimizer
         criterion = nn.BCELoss()
@@ -265,7 +260,7 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
         
         iterator = range(epochs)
         if verbose:
-            iterator = tqdm(iterator, desc="Training DKT")
+            iterator = tqdm(iterator, desc=f"Training {self.model_name}")
         
         for epoch in iterator:
             total_loss = 0.0
@@ -315,7 +310,7 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
                 total_loss += loss.item()
                 num_batches += 1
             
-            avg_loss = total_loss / num_batches
+            avg_loss = total_loss / max(1, num_batches)
             
             if verbose and (epoch + 1) % 5 == 0:
                 print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
@@ -324,6 +319,15 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
         
         if verbose:
             print(f"Training completed. Final loss: {avg_loss:.4f}")
+
+    def _init_model(self, num_skills: int) -> nn.Module:
+        """Initialize the inner PyTorch model. Can be overridden."""
+        return DKTModel(
+            num_skills=num_skills,
+            hidden_size=self.hidden_size,
+            num_layers=self.num_layers,
+            dropout=self.dropout
+        ).to(self.device)
     
     def predict_next(self, student_id: str, history: List[StudentInteraction],
                      next_skill: str) -> float:

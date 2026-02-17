@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 import sys
+import torch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -13,6 +14,8 @@ from models.bkt.improved_bkt import ImprovedBKT
 from models.logistic.logistic_model import LogisticModel
 
 from models.deep.dkt import DeepKnowledgeTracing
+from models.deep.dkt_bi_lstm import DeepKnowledgeTracingBiLSTM
+from models.deep.dkt_gru import DeepKnowledgeTracingGRU
 
 from data.mock_generator import MockDataGenerator
 
@@ -24,8 +27,8 @@ def main():
     parser.add_argument(
         '--students',
         type=int,
-        default=300,
-        help='Number of students (default: 300, recommend 300+ for DKT)'
+        default=1000,
+        help='Number of students (default: 1000)'
     )
     parser.add_argument(
         '--epochs',
@@ -50,6 +53,12 @@ def main():
         action='store_true',
         help='Skip DKT (faster, for testing)'
     )
+    parser.add_argument(
+        '--device',
+        type=str,
+        default='auto',
+        help='Device to use (auto, cpu, cuda)'
+    )
     
     args = parser.parse_args()
     
@@ -60,22 +69,53 @@ def main():
     else:
         output_dir = args.output
     
+    # Device configuration
+    if args.device == 'auto':
+        if torch.cuda.is_available():
+            device = 'cuda'
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            device = 'mps'
+        else:
+            device = 'cpu'
+    else:
+        device = args.device
+    
     print(f"Configuration:")
     print(f"  Students: {args.students}") 
     print(f"  Seed: {args.seed}")
     print(f"  Output: {output_dir}")
+    print(f"  Device: {device}")
+    
+    if device == 'cpu' and args.students > 1000 and not args.skip_dkt:
+        print("\nWARNING: You are training Deep Learning models on CPU with > 1000 students.")
+        print("This may be very slow. Consider verifying your CUDA installation if you have a GPU.")
+        print("Run 'pip install torch --index-url https://download.pytorch.org/whl/cu118' (or relevant version).\n")
+    
     print()
     
-    # Generate dataset
-    print("Generating synthetic dataset...")
-    generator = MockDataGenerator(seed=args.seed)
-    dataset = generator.generate_dataset(
-        num_students=args.students,
-        num_skills=10,
-        min_attempts_per_student=30,
-        max_attempts_per_student=50,
-        forgetting_rate=0.05
-    )
+    # Generate or load dataset
+    dataset_cache_file = Path(f"dataset_{args.students}_{args.seed}.pkl")
+    
+    if dataset_cache_file.exists():
+        print(f"Loading cached dataset from {dataset_cache_file}...")
+        import pickle
+        with open(dataset_cache_file, 'rb') as f:
+            dataset = pickle.load(f)
+    else:
+        print("Generating synthetic dataset (this may take a while)...")
+        generator = MockDataGenerator(seed=args.seed)
+        dataset = generator.generate_dataset(
+            num_students=args.students,
+            num_skills=10,
+            min_attempts_per_student=30,
+            max_attempts_per_student=50,
+            forgetting_rate=0.05
+        )
+        # Cache the dataset
+        print(f"Caching dataset to {dataset_cache_file}...")
+        import pickle
+        with open(dataset_cache_file, 'wb') as f:
+            pickle.dump(dataset, f)
     
     print(f"Dataset: {dataset.num_students} students, {dataset.num_interactions} interactions")
     print()
@@ -92,10 +132,18 @@ def main():
     comparison.add_model("Logistic Model (PFA)", LogisticModel())
     
     # Add Deep Learning
+    # Add Deep Learning
     if not args.skip_dkt:
-        dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2)
-        comparison.add_model("Deep Knowledge Tracing", dkt)
-        print("  (DKT will train for {} epochs - this may take a few minutes)".format(args.epochs))
+        dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+        comparison.add_model("Deep Knowledge Tracing (LSTM)", dkt)
+        
+        dkt_bi = DeepKnowledgeTracingBiLSTM(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+        comparison.add_model("Deep Knowledge Tracing (Bi-LSTM)", dkt_bi)
+        
+        dkt_gru = DeepKnowledgeTracingGRU(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+        comparison.add_model("Deep Knowledge Tracing (GRU)", dkt_gru)
+        
+        print("  (DKT models will train for {} epochs - this may take a few minutes)".format(args.epochs))
     
     print()
     
@@ -122,7 +170,7 @@ def main():
     
     efficiency_df = comparison.compare_data_efficiency(
         dataset,
-        sample_sizes=[50, 100, 200, 300],
+        sample_sizes=[500, 1000, 5000, 10000],
         num_trials=2,
         verbose=True
     )

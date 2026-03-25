@@ -8,65 +8,62 @@ from .schemas import Dataset, StudentSequence, StudentInteraction, Skill, Item
 class DataLoader:
     """
     Loads data from CSV files into the Dataset schema.
+    Automatically maps arbitrary item_ids/skill_ids to continuous integers (0, 1, 2...)
+    to prevent 'index out of range' errors in Deep Learning models.
     """
     
     @staticmethod
     def load_from_csv(
         filepath: str,
         col_student: str = 'student_id',
-        col_skill: str = 'skill_id',
-        col_item: str = 'item_id',
-        col_correct: str = 'correct',
-        col_time: Optional[str] = 'timestamp',
-        col_time_taken: Optional[str] = 'time_taken',
+        col_skill: str = 'question_id',
+        col_item: str = 'question_id',
+        col_correct: str = 'is_correct',
+        col_time: Optional[str] = None,
+        col_time_taken: Optional[str] = 'response_time',
         time_format: str = '%Y-%m-%d %H:%M:%S'
     ) -> Dataset:
-        """
-        Load a dataset from a CSV file.
         
-        Args:
-            filepath: Path to CSV file
-            col_student: Column name for student ID
-            col_skill: Column name for skill/KC ID
-            col_item: Column name for item/problem ID
-            col_correct: Column name for correctness (0/1)
-            col_time: Column name for timestamp (optional)
-            col_time_taken: Column name for response time in seconds (optional)
-            time_format: Format string for parsing timestamps
-            
-        Returns:
-            Dataset object populated with the data
-        """
         df = pd.read_csv(filepath)
         print(f"Loaded {len(df)} rows from {filepath}")
         
         # Validate columns
-        required = [col_student, col_skill, col_item, col_correct]
+        required = [col_student, col_item, col_correct]
         for col in required:
             if col not in df.columns:
                 raise ValueError(f"Missing required column: {col}")
         
-        # Create Skills and Items dicts
-        skills: Dict[str, Skill] = {}
-        items: Dict[str, Item] = {}
+        actual_col_skill = col_skill if col_skill in df.columns else col_item
         
-        unique_skills = df[col_skill].unique()
-        for sid in unique_skills:
-            skills[str(sid)] = Skill(skill_id=str(sid), name=str(sid))
-            
+        # ==========================================
+        # 🌟 THE FIX: Create Continuous ID Mapping
+        # ==========================================
+        unique_skills = df[actual_col_skill].unique()
         unique_items = df[col_item].unique()
-        for iid in unique_items:
-            # Try to find skill for this item (assuming 1-to-1 mapping in data)
-            # Take first skill associated with item
-            item_skill = df[df[col_item] == iid][col_skill].iloc[0]
-            items[str(iid)] = Item(item_id=str(iid), skill_id=str(item_skill))
+        
+        # Map original ID -> Continuous String ID ("0", "1", "2", ...)
+        skill_id_map = {orig: str(idx) for idx, orig in enumerate(unique_skills)}
+        item_id_map = {orig: str(idx) for idx, orig in enumerate(unique_items)}
+        
+        # Create Skills and Items dicts using mapped IDs
+        skills: Dict[str, Skill] = {}
+        for orig_sid in unique_skills:
+            mapped_sid = skill_id_map[orig_sid]
+            # Keep the original ID in the 'name' field for reference
+            skills[mapped_sid] = Skill(skill_id=mapped_sid, name=str(orig_sid))
+            
+        items: Dict[str, Item] = {}
+        for orig_iid in unique_items:
+            mapped_iid = item_id_map[orig_iid]
+            orig_skill = df[df[col_item] == orig_iid][actual_col_skill].iloc[0]
+            mapped_skill = skill_id_map[orig_skill]
+            items[mapped_iid] = Item(item_id=mapped_iid, skill_id=mapped_skill)
             
         # Create Student Sequences
         sequences: List[StudentSequence] = []
         
         # Group by student
         for student_id, group in df.groupby(col_student):
-            # Sort by time if available
             if col_time and col_time in df.columns:
                 try:
                     group[col_time] = pd.to_datetime(group[col_time])
@@ -76,10 +73,16 @@ class DataLoader:
             
             interactions = []
             for _, row in group.iterrows():
-                # specific checks
-                correct_val = int(row[col_correct])
-                if correct_val not in [0, 1]:
-                    continue # Skip invalid rows
+                # Parse correctness
+                raw_correct = row[col_correct]
+                if isinstance(raw_correct, bool):
+                    correct_val = 1 if raw_correct else 0
+                elif str(raw_correct).lower() in ['true', 't', '1', '1.0']:
+                    correct_val = 1
+                elif str(raw_correct).lower() in ['false', 'f', '0', '0.0']:
+                    correct_val = 0
+                else:
+                    continue
                 
                 timestamp = None
                 if col_time and col_time in df.columns:
@@ -92,12 +95,11 @@ class DataLoader:
                     except:
                         pass
                 
-                # If no time taken, ImprovedBKT might default to 60s
-                
+                # Use the mapped contiguous IDs here!
                 interactions.append(StudentInteraction(
                     student_id=str(student_id),
-                    item_id=str(row[col_item]),
-                    skill_id=str(row[col_skill]),
+                    item_id=item_id_map[row[col_item]],
+                    skill_id=skill_id_map[row[actual_col_skill]],
                     correct=correct_val,
                     timestamp=timestamp,
                     time_taken_seconds=time_taken

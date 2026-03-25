@@ -17,18 +17,24 @@ from models.deep.dkt import DeepKnowledgeTracing
 from models.deep.dkt_bi_lstm import DeepKnowledgeTracingBiLSTM
 from models.deep.dkt_gru import DeepKnowledgeTracingGRU
 
-from data.mock_generator import MockDataGenerator
-
+# Import the DataLoader from your data module
+from data.data_loader import DataLoader
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Compare BKT variants, Logistic Regression and Deep Learning'
+        description='Compare BKT variants, Logistic Regression and Deep Learning across multiple dataset sizes'
     )
     parser.add_argument(
-        '--students',
-        type=int,
-        default=1000,
-        help='Number of students (default: 1000)'
+        '--data-files',
+        nargs='+',
+        type=str,
+        default=[
+            'synthetic_data_500.csv', 
+            # 'synthetic_data_1000.csv', 
+            # 'synthetic_data_5000.csv', 
+            # 'synthetic_data_10000.csv'
+        ],
+        help='List of CSV files to evaluate (separated by space)'
     )
     parser.add_argument(
         '--epochs',
@@ -37,37 +43,33 @@ def main():
         help='DKT training epochs (default: 15)'
     )
     parser.add_argument(
-        '--seed',
-        type=int,
-        default=42,
-        help='Random seed (default: 42)'
-    )
-    parser.add_argument(
         '--output',
         type=str,
         default=None,
-        help='Output directory (default: results/complete_TIMESTAMP)'
+        help='Base output directory (default: results/complete_TIMESTAMP)'
     )
     parser.add_argument(
         '--skip-dkt',
         action='store_true',
-        help='Skip DKT (faster, for testing)'
+        help='Skip DKT (faster, for testing)' # ถ้าไม่พิมพ์ --skip-dkt ตอนรัน ค่าจะเป็น False เสมอ
     )
     parser.add_argument(
         '--device',
         type=str,
-        default='auto',
-        help='Device to use (auto, cpu, cuda)'
+        default='cuda',
+        help='Device to use (auto, cuda, cpu, mps)'
     )
     
     args = parser.parse_args()
     
-    # Generate output directory
+    # Generate base output directory
     if args.output is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = f"results/complete_{timestamp}"
+        base_output_dir = f"results/complete_{timestamp}"
     else:
-        output_dir = args.output
+        base_output_dir = args.output
+        
+    Path(base_output_dir).mkdir(parents=True, exist_ok=True)
     
     # Device configuration
     if args.device == 'auto':
@@ -79,123 +81,110 @@ def main():
             device = 'cpu'
     else:
         device = args.device
+        if device == 'cuda' and not torch.cuda.is_available():
+            print("WARNING: CUDA requested but not available. Falling back to CPU for Deep Learning models.")
+            device = 'cpu'
     
     print(f"Configuration:")
-    print(f"  Students: {args.students}") 
-    print(f"  Seed: {args.seed}")
-    print(f"  Output: {output_dir}")
+    print(f"  Data Files: {args.data_files}") 
+    print(f"  Base Output: {base_output_dir}")
     print(f"  Device: {device}")
     
-    if device == 'cpu' and args.students > 1000 and not args.skip_dkt:
-        print("\nWARNING: You are training Deep Learning models on CPU with > 1000 students.")
+    if device == 'cpu' and not args.skip_dkt:
+        print("\nWARNING: You are training Deep Learning models on CPU.")
         print("This may be very slow. Consider verifying your CUDA installation if you have a GPU.")
         print("Run 'pip install torch --index-url https://download.pytorch.org/whl/cu118' (or relevant version).\n")
     
     print()
     
-    # Generate or load dataset
-    dataset_cache_file = Path(f"dataset_{args.students}_{args.seed}.pkl")
-    
-    if dataset_cache_file.exists():
-        print(f"Loading cached dataset from {dataset_cache_file}...")
-        import pickle
-        with open(dataset_cache_file, 'rb') as f:
-            dataset = pickle.load(f)
-    else:
-        print("Generating synthetic dataset (this may take a while)...")
-        generator = MockDataGenerator(seed=args.seed)
-        dataset = generator.generate_dataset(
-            num_students=args.students,
-            num_skills=10,
-            min_attempts_per_student=30,
-            max_attempts_per_student=50,
-            forgetting_rate=0.05
-        )
-        # Cache the dataset
-        print(f"Caching dataset to {dataset_cache_file}...")
-        import pickle
-        with open(dataset_cache_file, 'wb') as f:
-            pickle.dump(dataset, f)
-    
-    print(f"Dataset: {dataset.num_students} students, {dataset.num_interactions} interactions")
-    print()
-    
-    # Create comparison framework
-    comparison = ModelComparison(output_dir=output_dir)
-    
-    # Add BKT models
-    print("Adding models...")
-    comparison.add_model("Standard BKT", StandardBKT())
-    comparison.add_model("BKT with Forgetting", BKTWithForgetting())
-    comparison.add_model("Individualized BKT", IndividualizedBKT())
-    comparison.add_model("Improved BKT (Time)", ImprovedBKT())
-    comparison.add_model("Logistic Model (PFA)", LogisticModel())
-    
-    # Add Deep Learning
-    # Add Deep Learning
-    if not args.skip_dkt:
-        dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2, device=device)
-        comparison.add_model("Deep Knowledge Tracing (LSTM)", dkt)
+    # ==========================================
+    # LOOP THROUGH EACH DATASET FILE
+    # ==========================================
+    for data_file in args.data_files:
+        print(f"\n{'='*60}")
+        print(f" STARTING EVALUATION FOR: {data_file}")
+        print(f"{'='*60}")
         
-        dkt_bi = DeepKnowledgeTracingBiLSTM(hidden_size=128, num_layers=1, dropout=0.2, device=device)
-        comparison.add_model("Deep Knowledge Tracing (Bi-LSTM)", dkt_bi)
+        data_path = Path(data_file)
         
-        dkt_gru = DeepKnowledgeTracingGRU(hidden_size=128, num_layers=1, dropout=0.2, device=device)
-        comparison.add_model("Deep Knowledge Tracing (GRU)", dkt_gru)
-        
-        print("  (DKT models will train for {} epochs - this may take a few minutes)".format(args.epochs))
-    
-    print()
-    
-    # Run comparison
-    print(" RUNNING COMPARISON")
-    
-    # Custom fit params for DKT
-    fit_params = {
-        'max_iterations': 50,
-        'verbose': False,
-        'epochs': args.epochs,  # For DKT
-        'batch_size': 32,  # For DKT
-        'learning_rate': 0.001  # For DKT
-    }
-    
-    results_df = comparison.compare_on_dataset(
-        dataset,
-        fit_params=fit_params,
-        verbose=True
-    )
-    
-    # Data efficiency (skip DKT for speed)
-    print(" DATA EFFICIENCY ANALYSIS")
-    
-    efficiency_df = comparison.compare_data_efficiency(
-        dataset,
-        sample_sizes=[500, 1000, 5000, 10000],
-        num_trials=2,
-        verbose=True
-    )
-    
-    # Save summary
-    comparison.save_summary_report()
-    
-    print(f"\nResults saved to: {output_dir}/")
-    print()
-    
-    # Detailed summary
-    print(" KEY FINDINGS")
-    
-    # Best models
-    best_by_auc = results_df.loc[results_df['test_auc'].idxmax()]
-    best_by_speed = results_df.loc[results_df['training_time_seconds'].idxmin()]
-    
-    print(f"\n Best Accuracy: {best_by_auc['model']}")
-    print(f"   AUC: {best_by_auc['test_auc']:.4f}")
-    print(f"   Accuracy: {best_by_auc['test_accuracy']:.4f}")
-    print(f"   Training time: {best_by_auc['training_time_seconds']:.2f}s")
-    
-    print(f"\n Fastest: {best_by_speed['model']}")
-    print(f"   Training time: {best_by_speed['training_time_seconds']:.2f}s")
-    print(f"   AUC: {best_by_speed['test_auc']:.4f}")
-    
+        if not data_path.exists():
+            print(f"Error: Could not find '{data_file}'. Skipping to next file...")
+            continue
+            
+        try:
+            # 1. Load Data
+            dataset = DataLoader.load_from_csv(
+                filepath=str(data_path),
+                col_student='student_id',
+                col_skill='question_id',
+                col_item='question_id',
+                col_correct='is_correct',
+                col_time=None,
+                col_time_taken='response_time'
+            )
+            print(f"Dataset ready: {dataset.num_students} students, {dataset.num_interactions} interactions")
+            
+            # 2. Setup Output Directory for this specific file
+            file_output_dir = f"{base_output_dir}/{data_path.stem}"
+            
+            # 3. Create comparison framework
+            comparison = ModelComparison(output_dir=file_output_dir)
+            
+            print("Adding Traditional Models (BKT & Logistic)...")
+            comparison.add_model("Standard BKT", StandardBKT())
+            comparison.add_model("BKT with Forgetting", BKTWithForgetting())
+            comparison.add_model("Individualized BKT", IndividualizedBKT())
+            comparison.add_model("Improved BKT (Time)", ImprovedBKT())
+            comparison.add_model("Logistic Model (PFA)", LogisticModel())
+            
+            if not args.skip_dkt:
+                print(f"Adding Deep Learning Models (DKT) on device: {device.upper()}...")
+                dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+                comparison.add_model("Deep Knowledge Tracing (LSTM)", dkt)
+                
+                dkt_bi = DeepKnowledgeTracingBiLSTM(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+                comparison.add_model("Deep Knowledge Tracing (Bi-LSTM)", dkt_bi)
+                
+                dkt_gru = DeepKnowledgeTracingGRU(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+                comparison.add_model("Deep Knowledge Tracing (GRU)", dkt_gru)
+            else:
+                print("Skipping Deep Learning Models (--skip-dkt flag is active).")
+            
+            # 4. Run comparison
+            fit_params = {
+                'max_iterations': 50,
+                'verbose': False,
+                'epochs': args.epochs,
+                'batch_size': 32,
+                'learning_rate': 0.001
+            }
+            
+            print("RUNNING COMPARISON... (This will evaluate ALL added models)")
+            results_df = comparison.compare_on_dataset(
+                dataset,
+                fit_params=fit_params,
+                verbose=True
+            )
+            
+            # Save summary for this specific dataset size
+            comparison.save_summary_report()
+            
+            # 5. Print Findings for this dataset
+            best_by_auc = results_df.loc[results_df['test_auc'].idxmax()]
+            best_by_speed = results_df.loc[results_df['training_time_seconds'].idxmin()]
+            
+            print(f"\n KEY FINDINGS FOR {data_file}")
+            print(f" Best Accuracy: {best_by_auc['model']} (AUC: {best_by_auc['test_auc']:.4f})")
+            print(f" Fastest:       {best_by_speed['model']} (Time: {best_by_speed['training_time_seconds']:.2f}s)")
+            print(f" Results saved to: {file_output_dir}/")
+            
+        except Exception as e:
+            print(f"Error processing {data_file}: {str(e)}")
+            continue
+
+    print(f"\n{'='*60}")
+    print(f" ALL EVALUATIONS COMPLETED. Base output folder: {base_output_dir}")
+    print(f"{'='*60}")
+
 if __name__ == "__main__":
     main()

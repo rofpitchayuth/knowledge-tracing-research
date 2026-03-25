@@ -220,6 +220,7 @@ def plot_model_comparison(
     plt.close()
 
 
+
 def plot_data_efficiency(
     df: pd.DataFrame,
     save_path: Optional[str] = None
@@ -257,8 +258,6 @@ def plot_data_efficiency(
     
     # Plot Training Time (if available)
     # Just counting trials or finding specific time column
-    grouped_time = df.groupby(['model', 'sample_size']).size()
-    
     for i, model in enumerate(models):
         if model not in df['model'].values: continue
         model_data = df[df['model'] == model]
@@ -281,6 +280,133 @@ def plot_data_efficiency(
         print(f"Saved to: {save_path}")
     
     plt.close()
+
+
+def plot_cross_dataset_efficiency(
+    size_results: Dict[int, pd.DataFrame],
+    save_path: Optional[str] = None
+):
+    """
+    Create a Data Efficiency chart by comparing model performance across
+    multiple dataset sizes (e.g. 500, 1000, 5000 students).
+
+    Args:
+        size_results: dict mapping dataset_size (int) -> comparison_results DataFrame
+        save_path: Path to save the figure
+    """
+    # Build a combined long-format DataFrame
+    rows = []
+    for size, df in size_results.items():
+        for _, row in df.iterrows():
+            rows.append({
+                'dataset_size': size,
+                'model': row['model'],
+                'test_auc': row.get('test_auc', np.nan),
+                'test_accuracy': row.get('test_accuracy', np.nan),
+                'training_time_seconds': row.get('training_time_seconds', np.nan),
+                'training_success': row.get('training_success', False),
+            })
+
+    combined = pd.DataFrame(rows)
+    # Only keep successfully trained models
+    combined = combined[combined['training_success'] == True].copy()
+
+    if combined.empty:
+        print("No successful training results to plot for data efficiency.")
+        return
+
+    models = sorted(combined['model'].unique())
+    sizes = sorted(combined['dataset_size'].unique())
+    colors = sns.color_palette("husl", len(models))
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    fig.suptitle('Data Efficiency: Model Performance vs Dataset Size',
+                 fontsize=15, fontweight='bold', y=1.02)
+
+    # --- Plot 1: AUC vs Dataset Size ---
+    ax = axes[0]
+    for i, model in enumerate(models):
+        model_df = combined[combined['model'] == model].sort_values('dataset_size')
+        if model_df['test_auc'].isna().all():
+            continue
+        ax.plot(model_df['dataset_size'], model_df['test_auc'], 'o-',
+                linewidth=2.5, markersize=8, label=model, color=colors[i])
+        for _, r in model_df.iterrows():
+            if not np.isnan(r['test_auc']):
+                ax.annotate(f"{r['test_auc']:.3f}",
+                            (r['dataset_size'], r['test_auc']),
+                            textcoords="offset points", xytext=(0, 8),
+                            ha='center', fontsize=8, color=colors[i])
+
+    ax.set_xlabel('Dataset Size (Students)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Test AUC', fontsize=12, fontweight='bold')
+    ax.set_title('AUC vs Dataset Size', fontsize=13, fontweight='bold')
+    ax.set_xscale('log')
+    ax.set_xticks(sizes)
+    ax.set_xticklabels([str(s) for s in sizes])
+    ax.legend(fontsize=9, loc='lower right')
+    ax.grid(True, alpha=0.3)
+
+    # --- Plot 2: Accuracy vs Dataset Size ---
+    ax = axes[1]
+    for i, model in enumerate(models):
+        model_df = combined[combined['model'] == model].sort_values('dataset_size')
+        if model_df['test_accuracy'].isna().all():
+            continue
+        ax.plot(model_df['dataset_size'], model_df['test_accuracy'], 's--',
+                linewidth=2.5, markersize=8, label=model, color=colors[i])
+        for _, r in model_df.iterrows():
+            if not np.isnan(r['test_accuracy']):
+                ax.annotate(f"{r['test_accuracy']:.3f}",
+                            (r['dataset_size'], r['test_accuracy']),
+                            textcoords="offset points", xytext=(0, 8),
+                            ha='center', fontsize=8, color=colors[i])
+
+    ax.set_xlabel('Dataset Size (Students)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Test Accuracy', fontsize=12, fontweight='bold')
+    ax.set_title('Accuracy vs Dataset Size', fontsize=13, fontweight='bold')
+    ax.set_xscale('log')
+    ax.set_xticks(sizes)
+    ax.set_xticklabels([str(s) for s in sizes])
+    ax.legend(fontsize=9, loc='lower right')
+    ax.grid(True, alpha=0.3)
+
+    # --- Plot 3: Training Time vs Dataset Size (bar chart per size) ---
+    ax = axes[2]
+    n_models = len(models)
+    bar_width = 0.8 / n_models
+    x = np.arange(len(sizes))
+
+    for i, model in enumerate(models):
+        model_df = combined[combined['model'] == model].sort_values('dataset_size')
+        times = []
+        for s in sizes:
+            row = model_df[model_df['dataset_size'] == s]
+            if not row.empty and not np.isnan(row['training_time_seconds'].values[0]):
+                times.append(row['training_time_seconds'].values[0])
+            else:
+                times.append(0)
+        offset = (i - n_models / 2 + 0.5) * bar_width
+        bars = ax.bar(x + offset, times, bar_width, label=model, color=colors[i],
+                      edgecolor='black', linewidth=0.5, alpha=0.85)
+
+    ax.set_xlabel('Dataset Size (Students)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Training Time (seconds)', fontsize=12, fontweight='bold')
+    ax.set_title('Training Speed vs Dataset Size', fontsize=13, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(s) for s in sizes])
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3, axis='y')
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Saved to: {save_path}")
+
+    plt.close()
+
+
 
 
 def plot_learning_trajectory(

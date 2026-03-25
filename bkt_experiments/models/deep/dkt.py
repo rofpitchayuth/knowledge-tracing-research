@@ -45,17 +45,29 @@ from data.schemas import StudentInteraction, StudentSequence, Dataset
 class DKTDataset(TorchDataset):
     """PyTorch Dataset for DKT training."""
     
-    def __init__(self, sequences: List[StudentSequence], num_skills: int):
+    def __init__(self, sequences: List[StudentSequence], num_skills: int, skill_map: Dict[str, int]):
         """
         Args:
             sequences: List of student sequences
             num_skills: Total number of skills
+            skill_map: Mapping from skill_id string to integer index
         """
         self.sequences = sequences
         self.num_skills = num_skills
+        self.skill_map = skill_map
         
     def __len__(self):
         return len(self.sequences)
+    
+    def _get_skill_idx(self, skill_id: str) -> int:
+        """Robustly resolve a skill_id to its integer index via skill_map."""
+        if skill_id in self.skill_map:
+            return self.skill_map[skill_id]
+        # Fallback: try to parse an integer directly
+        try:
+            return int(skill_id)
+        except ValueError:
+            return 0  # Default to 0 if unknown
     
     def __getitem__(self, idx):
         """
@@ -87,9 +99,9 @@ class DKTDataset(TorchDataset):
             current = interactions[t]
             next_interaction = interactions[t + 1]
             
-            # Input: current (skill, correctness)
-            skill_id = int(current.skill_id.split('_')[1])  # Extract number from 'skill_XX'
-            idx_offset = skill_id * 2
+            # Input: current (skill, correctness) - use skill_map for robust lookup
+            skill_idx = self._get_skill_idx(current.skill_id)
+            idx_offset = skill_idx * 2
             
             if current.correct == 1:
                 inputs[t, idx_offset + 1] = 1  # Skill correct
@@ -98,7 +110,7 @@ class DKTDataset(TorchDataset):
             
             # Target: next correctness
             targets[t] = float(next_interaction.correct)
-            skills[t] = int(next_interaction.skill_id.split('_')[1])
+            skills[t] = self._get_skill_idx(next_interaction.skill_id)
         
         return (
             torch.FloatTensor(inputs),
@@ -232,8 +244,8 @@ class DeepKnowledgeTracing(KnowledgeTracingModel):
         # Build skill mapping
         self._build_skill_map(dataset)
         
-        # Create PyTorch dataset
-        torch_dataset = DKTDataset(dataset.sequences, self.num_skills)
+        # Create PyTorch dataset - pass skill_map for robust skill_id resolution
+        torch_dataset = DKTDataset(dataset.sequences, self.num_skills, self.skill_map)
         
         def collate_fn(batch):
             inputs, targets, skills, masks = zip(*batch)

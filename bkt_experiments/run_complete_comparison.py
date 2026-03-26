@@ -30,9 +30,9 @@ def main():
         type=str,
         default=[
             'synthetic_data_500.csv', 
-            # 'synthetic_data_1000.csv', 
-            # 'synthetic_data_5000.csv', 
-            # 'synthetic_data_10000.csv'
+            'synthetic_data_1000.csv', 
+            'synthetic_data_5000.csv', 
+            'synthetic_data_10000.csv'
         ],
         help='List of CSV files to evaluate (separated by space)'
     )
@@ -51,7 +51,7 @@ def main():
     parser.add_argument(
         '--skip-dkt',
         action='store_true',
-        help='Skip DKT (faster, for testing)' # ถ้าไม่พิมพ์ --skip-dkt ตอนรัน ค่าจะเป็น False เสมอ
+        help='Skip DKT (faster, for testing)'
     )
     parser.add_argument(
         '--device',
@@ -97,13 +97,9 @@ def main():
     
     print()
     
-    # ==========================================
     # LOOP THROUGH EACH DATASET FILE
-    # ==========================================
     for data_file in args.data_files:
-        print(f"\n{'='*60}")
         print(f" STARTING EVALUATION FOR: {data_file}")
-        print(f"{'='*60}")
         
         data_path = Path(data_file)
         
@@ -182,9 +178,7 @@ def main():
             print(f"Error processing {data_file}: {str(e)}")
             continue
 
-    print(f"\n{'='*60}")
     print(f" ALL EVALUATIONS COMPLETED. Base output folder: {base_output_dir}")
-    print(f"{'='*60}")
 
 if __name__ == "__main__":
     main()

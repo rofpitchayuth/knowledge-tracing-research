@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-03-27T06:03:32.563307",
+  "models_compared": [
+    "Standard BKT",
+    "BKT with Forgetting",
+    "Individualized BKT",
+    "Improved BKT (Time)",
+    "Logistic Model (PFA)",
+    "Deep Knowledge Tracing (LSTM)",
+    "Deep Knowledge Tracing (Bi-LSTM)",
+    "Deep Knowledge Tracing (GRU)"
+  ],
+  "experiments_run": [
+    "single_dataset"
+  ],
+  "best_model_by_auc": "Deep Knowledge Tracing (GRU)",
+  "best_model_by_accuracy": "Deep Knowledge Tracing (GRU)",
+  "fastest_model": "Logistic Model (PFA)"
+}

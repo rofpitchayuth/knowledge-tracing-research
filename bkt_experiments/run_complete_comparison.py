@@ -31,8 +31,7 @@ def main():
         default=[
             'synthetic_data_500.csv', 
             'synthetic_data_1000.csv', 
-            'synthetic_data_5000.csv', 
-            'synthetic_data_10000.csv'
+            'synthetic_data_5000.csv'
         ],
         help='List of CSV files to evaluate (separated by space)'
     )
@@ -97,88 +96,96 @@ def main():
     
     print()
     
-    # LOOP THROUGH EACH DATASET FILE
-    for data_file in args.data_files:
-        print(f" STARTING EVALUATION FOR: {data_file}")
-        
-        data_path = Path(data_file)
-        
-        if not data_path.exists():
-            print(f"Error: Could not find '{data_file}'. Skipping to next file...")
-            continue
-            
-        try:
-            # 1. Load Data
-            dataset = DataLoader.load_from_csv(
-                filepath=str(data_path),
-                col_student='student_id',
-                col_skill='question_id',
-                col_item='question_id',
-                col_correct='is_correct',
-                col_time=None,
-                col_time_taken='response_time'
-            )
-            print(f"Dataset ready: {dataset.num_students} students, {dataset.num_interactions} interactions")
-            
-            # 2. Setup Output Directory for this specific file
-            file_output_dir = f"{base_output_dir}/{data_path.stem}"
-            
-            # 3. Create comparison framework
-            comparison = ModelComparison(output_dir=file_output_dir)
-            
-            print("Adding Traditional Models (BKT & Logistic)...")
-            comparison.add_model("Standard BKT", StandardBKT())
-            comparison.add_model("BKT with Forgetting", BKTWithForgetting())
-            comparison.add_model("Individualized BKT", IndividualizedBKT())
-            comparison.add_model("Improved BKT (Time)", ImprovedBKT())
-            comparison.add_model("Logistic Model (PFA)", LogisticModel())
-            
-            if not args.skip_dkt:
-                print(f"Adding Deep Learning Models (DKT) on device: {device.upper()}...")
-                dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2, device=device)
-                comparison.add_model("Deep Knowledge Tracing (LSTM)", dkt)
-                
-                dkt_bi = DeepKnowledgeTracingBiLSTM(hidden_size=128, num_layers=1, dropout=0.2, device=device)
-                comparison.add_model("Deep Knowledge Tracing (Bi-LSTM)", dkt_bi)
-                
-                dkt_gru = DeepKnowledgeTracingGRU(hidden_size=128, num_layers=1, dropout=0.2, device=device)
-                comparison.add_model("Deep Knowledge Tracing (GRU)", dkt_gru)
-            else:
-                print("Skipping Deep Learning Models (--skip-dkt flag is active).")
-            
-            # 4. Run comparison
-            fit_params = {
-                'max_iterations': 50,
-                'verbose': False,
-                'epochs': args.epochs,
-                'batch_size': 32,
-                'learning_rate': 0.001
-            }
-            
-            print("RUNNING COMPARISON... (This will evaluate ALL added models)")
-            results_df = comparison.compare_on_dataset(
-                dataset,
-                fit_params=fit_params,
-                verbose=True
-            )
-            
-            # Save summary for this specific dataset size
-            comparison.save_summary_report()
-            
-            # 5. Print Findings for this dataset
-            best_by_auc = results_df.loc[results_df['test_auc'].idxmax()]
-            best_by_speed = results_df.loc[results_df['training_time_seconds'].idxmin()]
-            
-            print(f"\n KEY FINDINGS FOR {data_file}")
-            print(f" Best Accuracy: {best_by_auc['model']} (AUC: {best_by_auc['test_auc']:.4f})")
-            print(f" Fastest:       {best_by_speed['model']} (Time: {best_by_speed['training_time_seconds']:.2f}s)")
-            print(f" Results saved to: {file_output_dir}/")
-            
-        except Exception as e:
-            print(f"Error processing {data_file}: {str(e)}")
-            continue
+    # OUTER LOOP: Run the entire evaluation pipeline 3 times (Trial 1, 2, 3)
+    for trial in range(1, 4):
+        print(f"\n{'='*60}")
+        print(f"--- STARTING TRIAL {trial} ---")
+        print(f"{'='*60}")
 
-    print(f" ALL EVALUATIONS COMPLETED. Base output folder: {base_output_dir}")
+        # INNER LOOP: Iterate through each dataset file for this trial
+        for data_file in args.data_files:
+            print(f" STARTING EVALUATION FOR: {data_file}")
+            
+            data_path = Path(data_file)
+            
+            if not data_path.exists():
+                print(f"Error: Could not find '{data_file}'. Skipping to next file...")
+                continue
+                
+            try:
+                # 1. Load Data
+                dataset = DataLoader.load_from_csv(
+                    filepath=str(data_path),
+                    col_student='student_id',
+                    col_skill='question_id',
+                    col_item='question_id',
+                    col_correct='is_correct',
+                    col_time=None,
+                    col_time_taken='response_time'
+                )
+                print(f"Dataset ready: {dataset.num_students} students, {dataset.num_interactions} interactions")
+                
+                # 2. Setup Output Directory for this specific file and trial
+                file_output_dir = f"{base_output_dir}/trial_{trial}/{data_path.stem}"
+                
+                # 3. Create comparison framework
+                comparison = ModelComparison(output_dir=file_output_dir)
+                
+                print("Adding Traditional Models (BKT & Logistic)...")
+                comparison.add_model("Standard BKT", StandardBKT())
+                comparison.add_model("BKT with Forgetting", BKTWithForgetting())
+                comparison.add_model("Individualized BKT", IndividualizedBKT())
+                comparison.add_model("Improved BKT (Time)", ImprovedBKT())
+                comparison.add_model("Logistic Model (PFA)", LogisticModel())
+                
+                if not args.skip_dkt:
+                    print(f"Adding Deep Learning Models (DKT) on device: {device.upper()}...")
+                    dkt = DeepKnowledgeTracing(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+                    comparison.add_model("Deep Knowledge Tracing (LSTM)", dkt)
+                    
+                    dkt_bi = DeepKnowledgeTracingBiLSTM(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+                    comparison.add_model("Deep Knowledge Tracing (Bi-LSTM)", dkt_bi)
+                    
+                    dkt_gru = DeepKnowledgeTracingGRU(hidden_size=128, num_layers=1, dropout=0.2, device=device)
+                    comparison.add_model("Deep Knowledge Tracing (GRU)", dkt_gru)
+                else:
+                    print("Skipping Deep Learning Models (--skip-dkt flag is active).")
+                
+                # 4. Run comparison
+                fit_params = {
+                    'max_iterations': 50,
+                    'verbose': False,
+                    'epochs': args.epochs,
+                    'batch_size': 32,
+                    'learning_rate': 0.001
+                }
+                
+                print("RUNNING COMPARISON... (This will evaluate ALL added models)")
+                results_df = comparison.compare_on_dataset(
+                    dataset,
+                    fit_params=fit_params,
+                    verbose=True
+                )
+                
+                # Save summary for this specific dataset size
+                comparison.save_summary_report()
+                
+                # 5. Print Findings for this dataset
+                best_by_auc = results_df.loc[results_df['test_auc'].idxmax()]
+                best_by_speed = results_df.loc[results_df['training_time_seconds'].idxmin()]
+                
+                print(f"\n KEY FINDINGS FOR {data_file}")
+                print(f" Best Accuracy: {best_by_auc['model']} (AUC: {best_by_auc['test_auc']:.4f})")
+                print(f" Fastest:       {best_by_speed['model']} (Time: {best_by_speed['training_time_seconds']:.2f}s)")
+                print(f" Results saved to: {file_output_dir}/")
+                
+            except Exception as e:
+                print(f"Error processing {data_file}: {str(e)}")
+                continue
+
+        print(f"\n--- TRIAL {trial} COMPLETED ---")
+
+    print(f"\n ALL EVALUATIONS COMPLETED. Base output folder: {base_output_dir}")
 
 if __name__ == "__main__":
     main()

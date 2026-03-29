@@ -1,0 +1,69 @@
+{
+    "StandardBKT": {
+        "best_params": {
+            "p_init": 0.3810278779517002,
+            "p_learn": 0.3235762626585713,
+            "p_guess": 0.23538171695544532,
+            "p_slip": 0.07656579693721746
+        },
+        "best_val_auc": 0.528011
+    },
+    "BKTWithForgetting": {
+        "best_params": {
+            "p_init": 0.41250184686082286,
+            "p_learn": 0.16283191136656866,
+            "p_guess": 0.19149149530755571,
+            "p_slip": 0.030204238165655227
+        },
+        "best_val_auc": 0.528011
+    },
+    "ImprovedBKT": {
+        "best_params": {
+            "p_init": 0.43185192970738384,
+            "p_learn": 0.2896271413531814,
+            "p_guess": 0.24808607909780453,
+            "p_slip": 0.020166982671067382
+        },
+        "best_val_auc": 0.525638
+    },
+    "IndividualizedBKT": {
+        "best_params": {
+            "p_init": 0.6402887528184901,
+            "p_learn": 0.6122834823484681,
+            "p_guess": 0.28853811383488304,
+            "p_slip": 0.07846487995836465
+        },
+        "best_val_auc": 0.528011
+    },
+    "LogisticModel": {
+        "best_params": {},
+        "best_val_auc": 0.527968
+    },
+    "DeepKnowledgeTracing": {
+        "best_params": {
+            "learning_rate": 0.0004173627407016826,
+            "hidden_size": 128,
+            "dropout": 0.24843826580043094,
+            "batch_size": 32
+        },
+        "best_val_auc": 0.604553
+    },
+    "DeepKnowledgeTracingBiLSTM": {
+        "best_params": {
+            "learning_rate": 0.00038429003653661983,
+            "hidden_size": 32,
+            "dropout": 0.32741504697827584,
+            "batch_size": 32
+        },
+        "best_val_auc": 0.57575
+    },
+    "DeepKnowledgeTracingGRU": {
+        "best_params": {
+            "learning_rate": 0.0007434283984012084,
+            "hidden_size": 64,
+            "dropout": 0.2800412125326377,
+            "batch_size": 64
+        },
+        "best_val_auc": 0.604226
+    }
+}

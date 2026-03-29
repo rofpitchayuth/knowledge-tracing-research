@@ -1,0 +1,69 @@
+{
+    "StandardBKT": {
+        "best_params": {
+            "p_init": 0.7517084555401108,
+            "p_learn": 0.21306143944252132,
+            "p_guess": 0.060768664936332824,
+            "p_slip": 0.023171377094257387
+        },
+        "best_val_auc": 0.541272
+    },
+    "BKTWithForgetting": {
+        "best_params": {
+            "p_init": 0.34803570393946515,
+            "p_learn": 0.7318554485238531,
+            "p_guess": 0.19870220896876406,
+            "p_slip": 0.021965552380542815
+        },
+        "best_val_auc": 0.541272
+    },
+    "ImprovedBKT": {
+        "best_params": {
+            "p_init": 0.7950948944131031,
+            "p_learn": 0.5329266365492926,
+            "p_guess": 0.02417593269217995,
+            "p_slip": 0.012911306874168043
+        },
+        "best_val_auc": 0.536865
+    },
+    "IndividualizedBKT": {
+        "best_params": {
+            "p_init": 0.3301818957824916,
+            "p_learn": 0.6415097297406684,
+            "p_guess": 0.2910847842892119,
+            "p_slip": 0.0857889381867698
+        },
+        "best_val_auc": 0.541272
+    },
+    "LogisticModel": {
+        "best_params": {},
+        "best_val_auc": 0.541378
+    },
+    "DeepKnowledgeTracing": {
+        "best_params": {
+            "learning_rate": 0.0019513521841120671,
+            "hidden_size": 64,
+            "dropout": 0.209027199437069,
+            "batch_size": 32
+        },
+        "best_val_auc": 0.564964
+    },
+    "DeepKnowledgeTracingBiLSTM": {
+        "best_params": {
+            "learning_rate": 0.0006071697249955478,
+            "hidden_size": 128,
+            "dropout": 0.40922085736716607,
+            "batch_size": 64
+        },
+        "best_val_auc": 0.550107
+    },
+    "DeepKnowledgeTracingGRU": {
+        "best_params": {
+            "learning_rate": 0.004995353766625813,
+            "hidden_size": 128,
+            "dropout": 0.26064600375620733,
+            "batch_size": 32
+        },
+        "best_val_auc": 0.560411
+    }
+}

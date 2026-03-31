@@ -23,7 +23,7 @@ from typing import Dict, Any
 
 import numpy as np
 
-# ── Allow imports relative to the bkt_experiments package ─────────────────────
+# Allow imports relative to the bkt_experiments package
 sys.path.insert(0, str(Path(__file__).parent))
 
 from data.data_loader import DataLoader
@@ -43,7 +43,7 @@ from models.deep.dkt import DeepKnowledgeTracing
 from models.deep.dkt_bi_lstm import DeepKnowledgeTracingBiLSTM
 from models.deep.dkt_gru import DeepKnowledgeTracingGRU
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers
 
 def split_dataset(dataset: Dataset, train_ratio: float = 0.8, val_ratio: float = 0.1):
     sequences = dataset.sequences
@@ -76,7 +76,7 @@ def get_val_auc(model, val_dataset: Dataset) -> float:
         return 0.0
 
 
-# ── BKT Optuna Tuning ──────────────────────────────────────────────────────────
+# BKT Optuna Tuning
 
 BKT_MODELS = [
     ("StandardBKT",        StandardBKT),
@@ -98,7 +98,7 @@ def _make_bkt_model(model_class, params: Dict[str, float]):
     except TypeError:
         return model_class()
 
-def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trials=50, max_iterations=50):
+def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trials=25, max_iterations=50):
     try:
         import optuna
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -106,11 +106,11 @@ def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trial
         raise ImportError("Optuna is required for tuning. Install it with: pip install optuna")
 
     def objective(trial):
-        # 🌟 กำหนด Search Space อย่างสมเหตุสมผลตามหลัก Psychometrics
+        # Define reasonable search space based on psychometrics
         p_init = trial.suggest_float("p_init", 0.01, 0.80)
         p_learn = trial.suggest_float("p_learn", 0.01, 0.80)
-        p_guess = trial.suggest_float("p_guess", 0.01, 0.30)  # ไม่ควรเดาถูกเกิน 30%
-        p_slip = trial.suggest_float("p_slip", 0.01, 0.10)    # ไม่ควรสะเพร่าเกิน 10%
+        p_guess = trial.suggest_float("p_guess", 0.01, 0.30)  # Guess rate should not exceed 30%
+        p_slip = trial.suggest_float("p_slip", 0.01, 0.10)    # Slip rate should not exceed 10%
 
         params = {
             "p_init": p_init,
@@ -128,8 +128,11 @@ def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trial
 
         return val_auc
 
-    print(f"\n  [{model_name}] Optuna study: {n_trials} trials …")
-    study = optuna.create_study(direction="maximize")
+    print(f"\n  [{model_name}] Optuna study: {n_trials} trials ...")
+    
+    # Add MedianPruner to cut short unpromising trials
+    pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=1)
+    study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
 
     best_trial = study.best_trial
@@ -137,7 +140,8 @@ def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trial
     return {"best_params": best_trial.params, "best_val_auc": round(best_trial.value, 6)}
 
 
-# ── Logistic Model Tuning ──────────────────────────────────────────────────────
+# Logistic Model Tuning
+
 def tune_logistic_model(train_dataset, val_dataset):
     print(f"\n{'─'*60}")
     print("  Logistic Model Grid Search")
@@ -174,7 +178,7 @@ def tune_logistic_model(train_dataset, val_dataset):
     return {"best_params": best_params, "best_val_auc": round(best_auc, 6)}
 
 
-# ── DKT Optuna Tuning ──────────────────────────────────────────────────────────
+# DKT Optuna Tuning
 
 DKT_MODELS = [
     ("DeepKnowledgeTracing",       DeepKnowledgeTracing),
@@ -208,8 +212,11 @@ def tune_dkt_optuna(train_dataset, val_dataset, model_name, model_class, num_ski
 
         return val_auc
 
-    print(f"\n  [{model_name}] Optuna study: {n_trials} trials …")
-    study = optuna.create_study(direction="maximize")
+    print(f"\n  [{model_name}] Optuna study: {n_trials} trials ...")
+    
+    # Add MedianPruner for DKT as well
+    pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=2)
+    study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
 
     best_trial = study.best_trial
@@ -217,13 +224,13 @@ def tune_dkt_optuna(train_dataset, val_dataset, model_name, model_class, num_ski
     return {"best_params": best_trial.params, "best_val_auc": round(best_trial.value, 6)}
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# Main
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-file", type=str, default="synthetic_data_1000.csv")
-    parser.add_argument("--bkt-trials", type=int, default=50, help="Number of Optuna trials for BKT")
-    parser.add_argument("--dkt-trials", type=int, default=20, help="Number of Optuna trials for DKT")
+    parser.add_argument("--data-file", type=str, default=["synthetic_data_500.csv","synthetic_data_1000.csv","synthetic_data_5000.csv"])
+    parser.add_argument("--bkt-trials", type=int, default=25, help="Number of Optuna trials for BKT")
+    parser.add_argument("--dkt-trials", type=int, default=30, help="Number of Optuna trials for DKT")
     parser.add_argument("--dkt-epochs", type=int, default=10)
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     parser.add_argument("--skip-dkt", action="store_true")
@@ -238,7 +245,7 @@ def main():
         sys.exit(1)
 
     print(f"\n{'='*60}\n  Knowledge Tracing Hyperparameter Tuning\n{'='*60}")
-    print("Loading dataset …")
+    print("Loading dataset ...")
     
     full_dataset = DataLoader.load_from_csv(
         filepath=str(data_path),
@@ -249,7 +256,7 @@ def main():
     num_skills = full_dataset.num_skills if hasattr(full_dataset, 'num_skills') else len(full_dataset.skills)
 
     train_ds, val_ds, test_ds = split_dataset(full_dataset, train_ratio=0.8, val_ratio=0.1)
-    print(f"\nSplit → Train: {train_ds.num_students} students | Val: {val_ds.num_students} students | Test: {test_ds.num_students} students")
+    print(f"\nSplit -> Train: {train_ds.num_students} students | Val: {val_ds.num_students} students | Test: {test_ds.num_students} students")
 
     all_results = {}
 
@@ -274,7 +281,7 @@ def main():
                 n_trials=args.dkt_trials, epochs=args.dkt_epochs, device=args.device
             )
 
-    # ── 4. Save results ────────────────────────────────────────────────────────
+    # 4. Save results
     output_path = Path(args.output)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=4, ensure_ascii=False)

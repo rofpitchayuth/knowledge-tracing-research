@@ -26,14 +26,16 @@ class LogisticModel(KnowledgeTracingModel):
     Performance Factor Analysis (PFA) / Logistic Regression Model.
     """
     
-    def __init__(self):
+    def __init__(self, C: float = 1.0, **kwargs):
         super().__init__()
         # Parameters per skill: {beta, gamma, delta}
         self.params = {} 
+        # Inverse of regularization strength; smaller values specify stronger regularization.
+        self.C = C
         
     def fit(self, dataset: Dataset, **kwargs) -> None:
         """
-        Fit PFA parameters using Maximum Likelihood Estimation.
+        Fit PFA parameters using Maximum Likelihood Estimation with L2 Regularization.
         """
         # Group data by skill
         skill_data = {}
@@ -62,8 +64,6 @@ class LogisticModel(KnowledgeTracingModel):
                     student_history[sid]['s'] += 1
                 else:
                     student_history[sid]['f'] += 1
-        
-        print(f"Fitting Logistic Model (PFA) for {len(skill_data)} skills...")
         
         # Optimize for each skill
         for skill_id, data in skill_data.items():
@@ -95,11 +95,19 @@ class LogisticModel(KnowledgeTracingModel):
         logits = np.dot(X, params)
         probs = expit(logits)
         
-        # Clip probabilities
+        # Clip probabilities to avoid log(0)
         probs = np.clip(probs, 1e-9, 1.0 - 1e-9)
         
-        # NLL
+        # Calculate standard Negative Log Likelihood
         nll = -np.sum(y * np.log(probs) + (1 - y) * np.log(1 - probs))
+        
+        # Apply L2 Regularization if C is provided and greater than 0
+        # We only regularize the weights (gamma, delta) which are params[1:]
+        # The bias term (beta) at params[0] is typically left unregularized
+        if self.C is not None and self.C > 0:
+            l2_penalty = (1.0 / self.C) * np.sum(params[1:] ** 2)
+            nll += l2_penalty
+            
         return nll
 
     def predict_next(self, student_id: str, history: List[StudentInteraction], next_skill: str) -> float:

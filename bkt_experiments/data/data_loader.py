@@ -36,7 +36,7 @@ class DataLoader:
         actual_col_skill = col_skill if col_skill in df.columns else col_item
         
         # ==========================================
-        # 🌟 THE FIX: Create Continuous ID Mapping
+        # THE FIX: Create Continuous ID Mapping
         # ==========================================
         unique_skills = df[actual_col_skill].unique()
         unique_items = df[col_item].unique()

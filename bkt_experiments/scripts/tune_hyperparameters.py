@@ -1,6 +1,6 @@
 """
-tune_hyperparameters.py
-=======================
+scripts/tune_hyperparameters.py
+===============================
 Hyperparameter tuning script for Knowledge Tracing models.
 
 Strategy:
@@ -10,21 +10,19 @@ Strategy:
 
 Metric in all cases: Validation AUC (higher is better).
 
-Output: best_hyperparameters.json saved in the working directory.
+Output: best_hyperparameters.json saved in the data directory.
 """
 
 import sys
 import json
-import copy
 import argparse
-import traceback
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict
 
 import numpy as np
 
-# Allow imports relative to the bkt_experiments package
-sys.path.insert(0, str(Path(__file__).parent))
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from data.data_loader import DataLoader
 from data.schemas import Dataset
@@ -43,7 +41,7 @@ from models.deep.dkt import DeepKnowledgeTracing
 from models.deep.dkt_bi_lstm import DeepKnowledgeTracingBiLSTM
 from models.deep.dkt_gru import DeepKnowledgeTracingGRU
 
-# Helpers
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def split_dataset(dataset: Dataset, train_ratio: float = 0.8, val_ratio: float = 0.1):
     sequences = dataset.sequences
@@ -76,7 +74,7 @@ def get_val_auc(model, val_dataset: Dataset) -> float:
         return 0.0
 
 
-# BKT Optuna Tuning
+# ── BKT Optuna Tuning ──────────────────────────────────────────────────────────
 
 BKT_MODELS = [
     ("StandardBKT",        StandardBKT),
@@ -106,18 +104,12 @@ def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trial
         raise ImportError("Optuna is required for tuning. Install it with: pip install optuna")
 
     def objective(trial):
-        # Define reasonable search space based on psychometrics
         p_init = trial.suggest_float("p_init", 0.01, 0.80)
         p_learn = trial.suggest_float("p_learn", 0.01, 0.80)
-        p_guess = trial.suggest_float("p_guess", 0.01, 0.30)  # Guess rate should not exceed 30%
-        p_slip = trial.suggest_float("p_slip", 0.01, 0.10)    # Slip rate should not exceed 10%
+        p_guess = trial.suggest_float("p_guess", 0.01, 0.30)
+        p_slip = trial.suggest_float("p_slip", 0.01, 0.10)
 
-        params = {
-            "p_init": p_init,
-            "p_learn": p_learn,
-            "p_guess": p_guess,
-            "p_slip": p_slip
-        }
+        params = {"p_init": p_init, "p_learn": p_learn, "p_guess": p_guess, "p_slip": p_slip}
 
         try:
             model = _make_bkt_model(model_class, params)
@@ -125,12 +117,10 @@ def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trial
             val_auc = get_val_auc(model, val_dataset)
         except Exception:
             return 0.0
-
         return val_auc
 
     print(f"\n  [{model_name}] Optuna study: {n_trials} trials ...")
     
-    # Add MedianPruner to cut short unpromising trials
     pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=1)
     study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
@@ -140,12 +130,10 @@ def tune_bkt_optuna(train_dataset, val_dataset, model_name, model_class, n_trial
     return {"best_params": best_trial.params, "best_val_auc": round(best_trial.value, 6)}
 
 
-# Logistic Model Tuning
+# ── Logistic Model Tuning ──────────────────────────────────────────────────────
 
 def tune_logistic_model(train_dataset, val_dataset):
-    print(f"\n{'─'*60}")
-    print("  Logistic Model Grid Search")
-    print(f"{'─'*60}")
+    print(f"\n{'─'*60}\n  Logistic Model Grid Search\n{'─'*60}")
     
     C_values = [0.01, 0.1, 1.0, 10.0, 100.0]
     best_auc = -1.0
@@ -178,7 +166,7 @@ def tune_logistic_model(train_dataset, val_dataset):
     return {"best_params": best_params, "best_val_auc": round(best_auc, 6)}
 
 
-# DKT Optuna Tuning
+# ── DKT Optuna Tuning ──────────────────────────────────────────────────────────
 
 DKT_MODELS = [
     ("DeepKnowledgeTracing",       DeepKnowledgeTracing),
@@ -209,12 +197,10 @@ def tune_dkt_optuna(train_dataset, val_dataset, model_name, model_class, num_ski
             val_auc = get_val_auc(model, val_dataset)
         except Exception:
             return 0.0
-
         return val_auc
 
     print(f"\n  [{model_name}] Optuna study: {n_trials} trials ...")
     
-    # Add MedianPruner for DKT as well
     pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=2)
     study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
@@ -224,28 +210,33 @@ def tune_dkt_optuna(train_dataset, val_dataset, model_name, model_class, num_ski
     return {"best_params": best_trial.params, "best_val_auc": round(best_trial.value, 6)}
 
 
-# Main
+# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-file", type=str, default=["synthetic_data_500.csv","synthetic_data_1000.csv","synthetic_data_5000.csv"])
-    parser.add_argument("--bkt-trials", type=int, default=25, help="Number of Optuna trials for BKT")
-    parser.add_argument("--dkt-trials", type=int, default=30, help="Number of Optuna trials for DKT")
+    # Default path now points to the data folder based on your structure
+    parser.add_argument("--data-file", type=str, default="data/synthetic_data_5000_diverse.csv")
+    parser.add_argument("--bkt-trials", type=int, default=25)
+    parser.add_argument("--dkt-trials", type=int, default=30)
     parser.add_argument("--dkt-epochs", type=int, default=10)
-    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
+    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda", "mps"])
     parser.add_argument("--skip-dkt", action="store_true")
     parser.add_argument("--skip-bkt", action="store_true")
     parser.add_argument("--bkt-max-iter", type=int, default=50)
-    parser.add_argument("--output", type=str, default="best_hyperparameters.json")
+    # Default output now saves in the data folder
+    parser.add_argument("--output", type=str, default="data/best_hyperparameters_5000.json")
     args = parser.parse_args()
 
-    data_path = Path(args.data_file)
+    # Allow running from anywhere by resolving relative to project root
+    data_path = PROJECT_ROOT / args.data_file
+    output_path = PROJECT_ROOT / args.output
+
     if not data_path.exists():
         print(f"[ERROR] Data file not found: {data_path}")
         sys.exit(1)
 
     print(f"\n{'='*60}\n  Knowledge Tracing Hyperparameter Tuning\n{'='*60}")
-    print("Loading dataset ...")
+    print(f"Loading dataset: {data_path} ...")
     
     full_dataset = DataLoader.load_from_csv(
         filepath=str(data_path),
@@ -260,29 +251,23 @@ def main():
 
     all_results = {}
 
-    # --- BKT Optuna Search ---
     if not args.skip_bkt:
         print(f"\n{'─'*60}\n  BKT Optuna Optimisation\n{'─'*60}")
         for name, cls in BKT_MODELS:
             all_results[name] = tune_bkt_optuna(
-                train_ds, val_ds, name, cls, 
-                n_trials=args.bkt_trials, max_iterations=args.bkt_max_iter
+                train_ds, val_ds, name, cls, n_trials=args.bkt_trials, max_iterations=args.bkt_max_iter
             )
-        
-        # --- Logistic Model ---
         all_results["LogisticModel"] = tune_logistic_model(train_ds, val_ds)
 
-    # --- DKT Optuna ---
     if not args.skip_dkt:
         print(f"\n{'─'*60}\n  DKT Optuna Optimisation\n{'─'*60}")
         for name, cls in DKT_MODELS:
             all_results[name] = tune_dkt_optuna(
-                train_ds, val_ds, name, cls, num_skills,
-                n_trials=args.dkt_trials, epochs=args.dkt_epochs, device=args.device
+                train_ds, val_ds, name, cls, num_skills, n_trials=args.dkt_trials, epochs=args.dkt_epochs, device=args.device
             )
 
-    # 4. Save results
-    output_path = Path(args.output)
+    # Save results
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=4, ensure_ascii=False)
 

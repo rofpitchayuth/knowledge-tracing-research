@@ -1,3 +1,11 @@
+"""
+experiments/run_model_comparison.py
+===================================
+Final evaluation script for Knowledge Tracing research.
+This script iterates over diverse datasets, dynamically loads their corresponding
+best hyperparameters, trains each model, and evaluates on the unseen Test Set.
+"""
+
 import argparse
 import json
 from datetime import datetime
@@ -5,10 +13,14 @@ import sys
 import torch
 import traceback
 import numpy as np
+import re
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to sys.path to resolve imports correctly
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
+# Assume ModelComparison class is implemented in the same module or package
 from experiments.model_comparison import ModelComparison
 from models.bkt.standard_bkt import StandardBKT, BKTParameters
 from models.bkt.bkt_forgetting import BKTWithForgetting
@@ -32,7 +44,7 @@ def inject_params_to_model(model, model_name, config_dict, skills):
     if not params:
         return model
 
-    # 1. กรณี IndividualizedBKT
+    # 1. IndividualizedBKT case
     if isinstance(model, IndividualizedBKT):
         for skill_id in skills:
             model.set_parameters(skill_id, {
@@ -42,7 +54,7 @@ def inject_params_to_model(model, model_name, config_dict, skills):
                 'default_p_learn': params.get('p_learn', 0.15)
             })
     
-    # 2. กรณี ImprovedBKT (Time-based)
+    # 2. ImprovedBKT (Time-based) case
     elif isinstance(model, ImprovedBKT):
         for skill_id in skills:
             logit = lambda p: np.log(p / (1 - p)) if 0 < p < 1 else -2.0
@@ -57,7 +69,7 @@ def inject_params_to_model(model, model_name, config_dict, skills):
             model.mean_log_time[skill_id] = 0.0
             model.std_log_time[skill_id] = 1.0
 
-    # 3. กรณี Standard BKT / Forgetting
+    # 3. Standard BKT / Forgetting case
     elif isinstance(model, (StandardBKT, BKTWithForgetting)):
         try:
             model.params = BKTParameters(
@@ -76,9 +88,12 @@ def main():
     parser = argparse.ArgumentParser(
         description='Compare BKT variants, Logistic Regression and Deep Learning across multiple dataset sizes'
     )
-    parser.add_argument('--data-files', nargs='+', type=str, default=['synthetic_data_500.csv', 'synthetic_data_1000.csv', 'synthetic_data_5000.csv'])
-    # parser.add_argument('--data-files', nargs='+', type=str, default=['synthetic_data_5000_diverse.csv'])
-    parser.add_argument('--config', type=str, default='best_hyperparameters_5000.json')
+    # Point default paths to the new data directory structure
+    parser.add_argument('--data-files', nargs='+', type=str, default=[
+        'data/synthetic_data_500_diverse.csv', 
+        'data/synthetic_data_1000_diverse.csv', 
+        'data/synthetic_data_5000_diverse.csv'
+    ])
     parser.add_argument('--epochs', type=int, default=15)
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--skip-dkt', action='store_true')
@@ -86,16 +101,6 @@ def main():
     
     args = parser.parse_args()
     
-    # 1. Load Hyperparameters Config
-    tuned_params = {}
-    config_path = Path(args.config)
-    if config_path.exists():
-        with open(config_path, 'r', encoding='utf-8') as f:
-            tuned_params = json.load(f)
-        print(f"\nSuccessfully loaded tuned hyperparameters from '{args.config}'")
-    else:
-        print(f"\nWARNING: Configuration file '{args.config}' not found. Using default parameters.")
-
     # Generate base output directory
     base_output_dir = args.output or f"results/complete_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     Path(base_output_dir).mkdir(parents=True, exist_ok=True)
@@ -118,17 +123,36 @@ def main():
     if device == 'cpu' and not args.skip_dkt:
         print("\nWARNING: You are training Deep Learning models on CPU. This may be very slow.")
     
-    # OUTER LOOP: Run the entire evaluation pipeline 3 times
+    # OUTER LOOP: Run the entire evaluation pipeline 3 times (Trials)
     for trial in range(1, 4):
         print(f"\n{'='*60}\n--- STARTING TRIAL {trial} ---\n{'='*60}")
 
         for data_file in args.data_files:
-            print(f" STARTING EVALUATION FOR: {data_file}")
-            data_path = Path(data_file)
+            print(f"\n STARTING EVALUATION FOR: {data_file}")
+            data_path = PROJECT_ROOT / data_file
             
             if not data_path.exists():
                 print(f"Error: Could not find '{data_file}'. Skipping to next file...")
                 continue
+                
+            # Extract dataset size from filename using Regex (e.g., 'synthetic_data_5000_diverse.csv' -> '5000')
+            match = re.search(r'(\d+)', data_path.name)
+            if not match:
+                print(f"Warning: Could not extract size from filename {data_path.name}. Skipping.")
+                continue
+            
+            dataset_size = match.group(1)
+            config_name = f"best_hyperparameters_{dataset_size}.json"
+            config_path = PROJECT_ROOT / "data" / config_name
+            
+            # Dynamically Load the matching Hyperparameters Config
+            tuned_params = {}
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    tuned_params = json.load(f)
+                print(f"Successfully loaded tuned hyperparameters from '{config_name}'")
+            else:
+                print(f"WARNING: Configuration file '{config_name}' not found. Using default parameters.")
                 
             try:
                 # 1. Load Data
@@ -139,11 +163,11 @@ def main():
                 )
                 print(f"Dataset ready: {dataset.num_students} students, {dataset.num_interactions} interactions")
                 
-                # ดึงรายการ skills เพื่อนำไปเตรียมช่องว่าง (Initialize) พารามิเตอร์ให้โมเดล BKT ขั้นสูง
+                # Extract skills to initialize parameters for advanced BKT models
                 skills = dataset.get_skill_ids() if hasattr(dataset, 'get_skill_ids') else list(dataset.skills)
                 num_skills = dataset.num_skills if hasattr(dataset, 'num_skills') else len(skills)
 
-                # 2. Setup Output Directory
+                # 2. Setup Output Directory for this trial and dataset
                 file_output_dir = f"{base_output_dir}/trial_{trial}/{data_path.stem}"
                 comparison = ModelComparison(output_dir=file_output_dir)
                 
@@ -162,8 +186,8 @@ def main():
                 if not args.skip_dkt:
                     print(f"Adding Deep Learning Models (DKT) on device: {device.upper()}...")
                     for name, cls in [("LSTM", DeepKnowledgeTracing), ("Bi-LSTM", DeepKnowledgeTracingBiLSTM), ("GRU", DeepKnowledgeTracingGRU)]:
-                        config_name = f"DeepKnowledgeTracing{name}" if name != "LSTM" else "DeepKnowledgeTracing"
-                        p = tuned_params.get(config_name, {}).get("best_params", {})
+                        config_name_dkt = f"DeepKnowledgeTracing{name}" if name != "LSTM" else "DeepKnowledgeTracing"
+                        p = tuned_params.get(config_name_dkt, {}).get("best_params", {})
                         
                         comparison.add_model(f"Deep Knowledge Tracing ({name})", cls(
                             num_skills=num_skills,
@@ -172,12 +196,12 @@ def main():
                             device=device
                         ))
                     
-                    # Use GRU's parameters as the baseline for execution
+                    # Use GRU's parameters as the baseline for global execution (epochs, batch_size)
                     gru_p = tuned_params.get("DeepKnowledgeTracingGRU", {}).get("best_params", {})
                     if gru_p:
                         global_lr, global_batch = gru_p.get("learning_rate", 0.001), gru_p.get("batch_size", 32)
                 
-                # 4. Run comparison
+                # 3. Run comparison
                 fit_params = {
                     'max_iterations': 50,
                     'verbose': False,
@@ -194,7 +218,7 @@ def main():
                 best_by_auc = results_df.loc[results_df['test_auc'].idxmax()]
                 best_by_speed = results_df.loc[results_df['training_time_seconds'].idxmin()]
                 
-                print(f"\n KEY FINDINGS FOR {data_file}")
+                print(f"\n KEY FINDINGS FOR {data_path.name}")
                 print(f" Best Accuracy: {best_by_auc['model']} (AUC: {best_by_auc['test_auc']:.4f})")
                 print(f" Fastest:       {best_by_speed['model']} (Time: {best_by_speed['training_time_seconds']:.2f}s)")
                 

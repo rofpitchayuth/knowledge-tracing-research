@@ -1,69 +1,71 @@
 {
     "StandardBKT": {
         "best_params": {
-            "p_init": 0.3810278779517002,
-            "p_learn": 0.3235762626585713,
-            "p_guess": 0.23538171695544532,
-            "p_slip": 0.07656579693721746
+            "p_init": 0.3524004197273513,
+            "p_learn": 0.24667087591710177,
+            "p_guess": 0.03481607951117841,
+            "p_slip": 0.06638795404854334
         },
-        "best_val_auc": 0.528011
+        "best_val_auc": 0.636466
     },
     "BKTWithForgetting": {
         "best_params": {
-            "p_init": 0.41250184686082286,
-            "p_learn": 0.16283191136656866,
-            "p_guess": 0.19149149530755571,
-            "p_slip": 0.030204238165655227
+            "p_init": 0.28997796389906855,
+            "p_learn": 0.4222134045289749,
+            "p_guess": 0.24608557453400098,
+            "p_slip": 0.05050598995603682
         },
-        "best_val_auc": 0.528011
+        "best_val_auc": 0.637073
     },
     "ImprovedBKT": {
         "best_params": {
-            "p_init": 0.43185192970738384,
-            "p_learn": 0.2896271413531814,
-            "p_guess": 0.24808607909780453,
-            "p_slip": 0.020166982671067382
+            "p_init": 0.6198658070345798,
+            "p_learn": 0.13193598350001717,
+            "p_guess": 0.034755732149662336,
+            "p_slip": 0.013674792235210642
         },
-        "best_val_auc": 0.525638
+        "best_val_auc": 0.637615
     },
     "IndividualizedBKT": {
         "best_params": {
-            "p_init": 0.6402887528184901,
-            "p_learn": 0.6122834823484681,
-            "p_guess": 0.28853811383488304,
-            "p_slip": 0.07846487995836465
+            "p_init": 0.26250413911529713,
+            "p_learn": 0.1510930513799627,
+            "p_guess": 0.0568393766432837,
+            "p_slip": 0.049805058666636814
         },
-        "best_val_auc": 0.528011
+        "best_val_auc": 0.635666
     },
     "LogisticModel": {
-        "best_params": {},
-        "best_val_auc": 0.527968
+        "best_params": {
+            "C": 100.0
+        },
+        "best_val_auc": 0.643049
     },
     "DeepKnowledgeTracing": {
         "best_params": {
-            "learning_rate": 0.0004173627407016826,
-            "hidden_size": 128,
-            "dropout": 0.24843826580043094,
+            "learning_rate": 0.0019307113689581246,
+            "hidden_size": 32,
+            "dropout": 0.23232686482735773,
             "batch_size": 32
         },
-        "best_val_auc": 0.604553
+        "best_val_auc": 0.716999
     },
     "DeepKnowledgeTracingBiLSTM": {
         "best_params": {
-            "learning_rate": 0.00038429003653661983,
-            "hidden_size": 32,
-            "dropout": 0.32741504697827584,
+            "learning_rate": 0.00010842916328785808,
+            "hidden_size": 128,
+            "dropout": 0.4749409710623377,
             "batch_size": 32
         },
-        "best_val_auc": 0.57575
+        "best_val_auc": 0.697493
     },
     "DeepKnowledgeTracingGRU": {
         "best_params": {
-            "learning_rate": 0.0007434283984012084,
+            "learning_rate": 0.0009486035452960828,
             "hidden_size": 64,
-            "dropout": 0.2800412125326377,
-            "batch_size": 64
+            "dropout": 0.39388334760131644,
+            "batch_size": 32
         },
-        "best_val_auc": 0.604226
+        "best_val_auc": 0.717664
     }
 }
